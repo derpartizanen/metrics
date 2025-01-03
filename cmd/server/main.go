@@ -75,9 +75,5 @@ func (s *MemStorage) UpdateGaugeMetric(name string, value float64) {
 }
 
 func (s *MemStorage) UpdateCounterMetric(name string, value int64) {
-	if _, ok := s.counter[name]; ok {
-		s.counter[name] += value
-	} else {
-		s.counter[name] = value
-	}
+	s.counter[name] += value
 }
