@@ -13,7 +13,7 @@ import (
 )
 
 func TestHandler_UpdateHandler(t *testing.T) {
-	var baseUrl = "http://localhost:8080"
+	var baseURL = "http://localhost:8080"
 	repository := memstorage.New()
 	store := storage.New(repository)
 	h := NewHandler(store)
@@ -32,7 +32,7 @@ func TestHandler_UpdateHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, fmt.Sprintf("%s%s", baseUrl, tt.endpoint), nil)
+			req := httptest.NewRequest(tt.method, fmt.Sprintf("%s%s", baseURL, tt.endpoint), nil)
 			req.SetPathValue("metricType", strings.Split(tt.endpoint, "/")[2])
 			req.SetPathValue("metricName", strings.Split(tt.endpoint, "/")[3])
 			req.SetPathValue("metricValue", strings.Split(tt.endpoint, "/")[4])

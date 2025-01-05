@@ -14,7 +14,7 @@ import (
 var (
 	pollInterval   = 2 * time.Second
 	reportInterval = 10 * time.Second
-	reportUrl      = "http://localhost:8080/update"
+	reportURL      = "http://localhost:8080/update"
 	counter        int64
 )
 
@@ -81,7 +81,7 @@ func updateMetrics() []model.Metric {
 func reportMetrics(metrics []model.Metric) error {
 	for _, metric := range metrics {
 		client := &http.Client{}
-		endpoint := fmt.Sprintf("%s/%s/%s/%v", reportUrl, metric.Type, metric.Name, metric.Value)
+		endpoint := fmt.Sprintf("%s/%s/%s/%v", reportURL, metric.Type, metric.Name, metric.Value)
 		req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 		if err != nil {
 			return err
