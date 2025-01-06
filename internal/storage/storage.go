@@ -3,6 +3,8 @@ package storage
 import (
 	"errors"
 	"strconv"
+
+	"github.com/derpartizanen/metrics/internal/model"
 )
 
 const (
@@ -23,6 +25,9 @@ type Storage struct {
 type Repository interface {
 	UpdateCounterMetric(string, int64) error
 	UpdateGaugeMetric(string, float64) error
+	GetGaugeMetric(string) (float64, error)
+	GetCounterMetric(string) (int64, error)
+	GetAllMetrics() (map[string]float64, map[string]int64, error)
 }
 
 func New(r Repository) *Storage {
@@ -49,4 +54,34 @@ func (s *Storage) Save(metricType string, metricName string, value string) error
 	}
 
 	return ErrInvalidMetricType
+}
+
+func (s *Storage) Get(metricType string, metricName string) (interface{}, error) {
+	if metricType == TypeGauge {
+		value, err := s.repository.GetGaugeMetric(metricName)
+
+		return value, err
+	}
+
+	if metricType == TypeCounter {
+		value, err := s.repository.GetCounterMetric(metricName)
+
+		return value, err
+	}
+
+	return nil, ErrInvalidMetricType
+}
+
+func (s *Storage) GetAll() ([]model.Metric, error) {
+	gauges, counters, _ := s.repository.GetAllMetrics()
+
+	var metrics []model.Metric
+	for name, value := range gauges {
+		metrics = append(metrics, model.Metric{Name: name, Type: "gauge", Value: value})
+	}
+	for name, value := range counters {
+		metrics = append(metrics, model.Metric{Name: name, Type: "counter", Value: value})
+	}
+
+	return metrics, nil
 }
