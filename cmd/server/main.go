@@ -1,8 +1,10 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
+	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/handler"
 	"github.com/derpartizanen/metrics/internal/repository/memstorage"
 	"github.com/derpartizanen/metrics/internal/storage"
@@ -10,6 +12,7 @@ import (
 )
 
 func main() {
+	cfg := config.ConfigureServer()
 	repository := memstorage.New()
 	store := storage.New(repository)
 	h := handler.NewHandler(store)
@@ -19,7 +22,8 @@ func main() {
 	r.Get("/value/{metricType}/{metricName}", h.GetHandler)
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.UpdateHandler)
 
-	err := http.ListenAndServe(":8080", r)
+	log.Println("Starting server on", cfg.Host)
+	err := http.ListenAndServe(cfg.Host, r)
 	if err != nil {
 		panic(err)
 	}

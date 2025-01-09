@@ -8,28 +8,29 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/model"
 )
 
-var (
-	pollInterval   = 2 * time.Second
-	reportInterval = 10 * time.Second
-	reportURL      = "http://localhost:8080/update"
-	counter        int64
-)
+var cfg *config.AgentConfig
+var counter int64
 
 func main() {
 	var metrics []model.Metric
 
+	cfg = config.ConfigureAgent()
+	log.Println("Starting agent")
+	cfg.LogVars()
+
 	go func() {
 		for {
 			metrics = updateMetrics()
-			time.Sleep(pollInterval)
+			time.Sleep(time.Duration(cfg.PollInterval) * time.Second)
 		}
 	}()
 
 	for {
-		time.Sleep(reportInterval)
+		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
 		err := reportMetrics(metrics)
 		if err != nil {
 			log.Fatal("report metric error: ", err)
@@ -79,6 +80,7 @@ func updateMetrics() []model.Metric {
 }
 
 func reportMetrics(metrics []model.Metric) error {
+	reportURL := fmt.Sprintf("http://%s/update", cfg.ReportEndpoint)
 	for _, metric := range metrics {
 		client := &http.Client{}
 		endpoint := fmt.Sprintf("%s/%s/%s/%v", reportURL, metric.Type, metric.Name, metric.Value)
