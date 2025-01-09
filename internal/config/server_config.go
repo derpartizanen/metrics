@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"os"
 )
 
 type ServerConfig struct {
@@ -13,6 +14,9 @@ func ConfigureServer() *ServerConfig {
 
 	flag.StringVar(&host, "a", "localhost:8080", "server host")
 	flag.Parse()
+	if envAddress := os.Getenv("ADDRESS"); envAddress != "" {
+		host = envAddress
+	}
 	cfg := &ServerConfig{Host: host}
 
 	return cfg
