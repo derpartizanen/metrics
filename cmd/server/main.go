@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/derpartizanen/metrics/internal/config"
@@ -15,6 +16,10 @@ import (
 func main() {
 	cfg := config.ConfigureServer()
 	err := logger.Initialize("INFO")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	repository := memstorage.New()
 	store := storage.New(repository)
 	h := handler.NewHandler(store)
