@@ -34,10 +34,7 @@ func main() {
 
 	for {
 		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
-		err := reportMetrics(metrics)
-		if err != nil {
-			log.Println("report metric error: ", err)
-		}
+		reportMetrics(metrics)
 	}
 }
 
@@ -79,26 +76,26 @@ func updateMetrics() []model.Metrics {
 	return metrics
 }
 
-func reportMetrics(metrics []model.Metrics) error {
+func reportMetrics(metrics []model.Metrics) {
 	reportURL := fmt.Sprintf("http://%s/update/", cfg.ReportEndpoint)
 	client := &http.Client{}
 	for _, metric := range metrics {
 		jsonStr, err := json.Marshal(metric)
 		log.Printf("report metric %s with body %s", metric.ID, jsonStr)
 		if err != nil {
-			return err
+			log.Print(err)
+			continue
 		}
 		req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(jsonStr))
 		if err != nil {
-			return err
+			log.Print(err)
+			continue
 		}
 		req.Header.Add("Content-Type", "application/json")
 		res, err := client.Do(req)
 		if err != nil {
-			return err
+			log.Print("request error:", err)
 		}
 		res.Body.Close()
 	}
-
-	return nil
 }
