@@ -94,7 +94,8 @@ func reportMetrics(metrics []model.Metrics) {
 		req.Header.Add("Content-Type", "application/json")
 		res, err := client.Do(req)
 		if err != nil {
-			log.Print("request error:", err)
+			log.Print("request error: ", err)
+			continue
 		}
 		res.Body.Close()
 	}
