@@ -36,7 +36,7 @@ func main() {
 		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
 		err := reportMetrics(metrics)
 		if err != nil {
-			log.Fatal("report metric error: ", err)
+			log.Println("report metric error: ", err)
 		}
 	}
 }
@@ -84,6 +84,10 @@ func reportMetrics(metrics []model.Metrics) error {
 	client := &http.Client{}
 	for _, metric := range metrics {
 		jsonStr, err := json.Marshal(metric)
+		log.Printf("report metric %s with body %s", metric.ID, jsonStr)
+		if err != nil {
+			return err
+		}
 		req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(jsonStr))
 		if err != nil {
 			return err
