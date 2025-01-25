@@ -14,7 +14,7 @@ func Test_updateMetrics(t *testing.T) {
 	}{
 		{name: "Alloc", metric: "Alloc", wantType: "gauge"},
 		{name: "RandomValue", metric: "RandomValue", wantType: "gauge"},
-		{name: "PollCounter", metric: "PollCounter", wantType: "counter"},
+		{name: "PollCount", metric: "PollCount", wantType: "counter"},
 	}
 
 	metrics := updateMetrics()
