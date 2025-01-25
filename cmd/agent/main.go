@@ -69,7 +69,7 @@ func updateMetrics() []model.Metrics {
 	}
 
 	counter += 1
-	metrics = append(metrics, model.Metrics{ID: "PollCounter", MType: "counter", Delta: &counter})
+	metrics = append(metrics, model.Metrics{ID: "PollCount", MType: "counter", Delta: &counter})
 	random := rand.Float64()
 	metrics = append(metrics, model.Metrics{ID: "RandomValue", MType: "gauge", Value: &random})
 
