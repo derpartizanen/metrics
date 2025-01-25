@@ -29,6 +29,8 @@ func main() {
 	r.Get("/", h.GetAllHandler)
 	r.Get("/value/{metricType}/{metricName}", h.GetHandler)
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.UpdateHandler)
+	r.Post("/value/", h.GetJSONHandler)
+	r.Post("/update/", h.UpdateJSONHandler)
 
 	logger.Log.Info("Starting server on", zap.String("host", cfg.Host))
 	err = http.ListenAndServe(cfg.Host, r)

@@ -56,6 +56,18 @@ func (s *Storage) Save(metricType string, metricName string, value string) error
 	return ErrInvalidMetricType
 }
 
+func (s *Storage) SaveMetric(metric model.Metrics) error {
+	if metric.MType == TypeCounter {
+		return s.repository.UpdateCounterMetric(metric.ID, *metric.Delta)
+	}
+
+	if metric.MType == TypeGauge {
+		return s.repository.UpdateGaugeMetric(metric.ID, *metric.Value)
+	}
+
+	return ErrInvalidMetricType
+}
+
 func (s *Storage) Get(metricType string, metricName string) (interface{}, error) {
 	if metricType == TypeGauge {
 		value, err := s.repository.GetGaugeMetric(metricName)
@@ -70,6 +82,26 @@ func (s *Storage) Get(metricType string, metricName string) (interface{}, error)
 	}
 
 	return nil, ErrInvalidMetricType
+}
+
+func (s *Storage) GetMetric(metric *model.Metrics) error {
+	if metric.MType == TypeGauge {
+		value, err := s.repository.GetGaugeMetric(metric.ID)
+		if err != nil {
+			return err
+		}
+		metric.Value = &value
+	}
+
+	if metric.MType == TypeCounter {
+		value, err := s.repository.GetCounterMetric(metric.ID)
+		if err != nil {
+			return err
+		}
+		metric.Delta = &value
+	}
+
+	return nil
 }
 
 func (s *Storage) GetAll() ([]model.Metric, error) {

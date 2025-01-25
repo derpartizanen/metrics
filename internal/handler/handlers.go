@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
+	"github.com/derpartizanen/metrics/internal/model"
 	"github.com/derpartizanen/metrics/internal/storage"
 )
 
@@ -70,4 +72,69 @@ func (h *Handler) GetAllHandler(res http.ResponseWriter, req *http.Request) {
 	}
 	res.Header().Set("Content-Type", "text/html")
 	io.WriteString(res, result)
+}
+
+func (h *Handler) GetJSONHandler(res http.ResponseWriter, req *http.Request) {
+	decoder := json.NewDecoder(req.Body)
+	defer req.Body.Close()
+
+	var metric model.Metrics
+	err := decoder.Decode(&metric)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = h.storage.GetMetric(&metric)
+
+	if err != nil {
+		if errors.Is(err, storage.ErrInvalidMetricType) {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(res, err.Error(), http.StatusNotFound)
+		}
+		return
+	}
+
+	resp, err := json.Marshal(metric)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.Write(resp)
+}
+
+func (h *Handler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
+	decoder := json.NewDecoder(req.Body)
+	defer req.Body.Close()
+
+	var metric model.Metrics
+	err := decoder.Decode(&metric)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = h.storage.SaveMetric(metric)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = h.storage.GetMetric(&metric)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := json.Marshal(metric)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.Write(resp)
 }
