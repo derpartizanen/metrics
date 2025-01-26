@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,7 +13,9 @@ import (
 	"time"
 
 	"github.com/derpartizanen/metrics/internal/config"
+	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
+	"go.uber.org/zap"
 )
 
 var cfg *config.AgentConfig
@@ -21,8 +24,13 @@ var counter int64
 func main() {
 	var metrics []model.Metrics
 
+	err := logger.Initialize("INFO")
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger.Log.Info("Starting agent")
+
 	cfg = config.ConfigureAgent()
-	log.Println("Starting agent")
 	cfg.LogVars()
 
 	go func() {
@@ -81,22 +89,50 @@ func reportMetrics(metrics []model.Metrics) {
 	client := &http.Client{}
 	for _, metric := range metrics {
 		jsonStr, err := json.Marshal(metric)
-		log.Printf("report metric %s with body %s", metric.ID, jsonStr)
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error("error marshal metric", zap.Error(err))
 			continue
 		}
-		req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(jsonStr))
+
+		gzipData, err := compressData(jsonStr)
 		if err != nil {
-			log.Print(err)
+			logger.Log.Error("error compress data:", zap.Error(err))
+			continue
+		}
+
+		req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(gzipData))
+		if err != nil {
+			logger.Log.Error("new request error", zap.Error(err))
 			continue
 		}
 		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Content-Encoding", "gzip")
 		res, err := client.Do(req)
 		if err != nil {
-			log.Print("request error: ", err)
+			logger.Log.Error("send request error", zap.Error(err))
 			continue
 		}
 		res.Body.Close()
+		//logger.Log.Info("send request", zap.ByteString("payload", jsonStr))
 	}
+}
+
+func compressData(data []byte) ([]byte, error) {
+	var b bytes.Buffer
+	w, err := gzip.NewWriterLevel(&b, gzip.BestSpeed)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = w.Write(data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = w.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return b.Bytes(), nil
 }
