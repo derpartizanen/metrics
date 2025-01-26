@@ -54,6 +54,7 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.Header().Set("Content-Type", "text/plain")
+	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, result)
 }
 
@@ -71,6 +72,7 @@ func (h *Handler) GetAllHandler(res http.ResponseWriter, req *http.Request) {
 
 	}
 	res.Header().Set("Content-Type", "text/html")
+	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, result)
 }
 
@@ -103,6 +105,7 @@ func (h *Handler) GetJSONHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
 	res.Write(resp)
 }
 
@@ -136,5 +139,6 @@ func (h *Handler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) 
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
 	res.Write(resp)
 }
