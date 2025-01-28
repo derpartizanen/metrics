@@ -77,11 +77,14 @@ func (s *Storage) Restore() error {
 func (s *Storage) Backup() error {
 	logger.Log.Debug("Backing up metrics to file")
 	metrics, err := s.GetAllMetrics()
-	metricsJson, err := json.MarshalIndent(metrics, "", "   ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.settings.StoragePath, metricsJson, 0666)
+	metricsJSON, err := json.MarshalIndent(metrics, "", "   ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.settings.StoragePath, metricsJSON, 0666)
 }
 
 func (s *Storage) Save(metricType string, metricName string, value string) error {
