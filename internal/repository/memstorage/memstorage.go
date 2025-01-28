@@ -2,6 +2,9 @@ package memstorage
 
 import (
 	"errors"
+
+	"github.com/derpartizanen/metrics/internal/model"
+	"github.com/derpartizanen/metrics/internal/storage"
 )
 
 var (
@@ -52,4 +55,23 @@ func (s *MemStorage) GetCounterMetric(metricName string) (int64, error) {
 
 func (s *MemStorage) GetAllMetrics() (map[string]float64, map[string]int64, error) {
 	return s.gauge, s.counter, nil
+}
+
+func (s *MemStorage) SetAllMetrics(metrics []model.Metrics) error {
+	for _, metric := range metrics {
+		if metric.MType == storage.MetricTypeCounter {
+			err := s.UpdateCounterMetric(metric.ID, *metric.Delta)
+			if err != nil {
+				return err
+			}
+		}
+		if metric.MType == storage.MetricTypeGauge {
+			err := s.UpdateGaugeMetric(metric.ID, *metric.Value)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

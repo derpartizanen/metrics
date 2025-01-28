@@ -1,8 +1,14 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/handler"
@@ -15,15 +21,40 @@ import (
 
 func main() {
 	cfg := config.ConfigureServer()
-	err := logger.Initialize("INFO")
+	err := logger.Initialize(cfg.Loglevel)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	repository := memstorage.New()
-	store := storage.New(repository)
-	h := handler.NewHandler(store)
+	storageSettings := storage.Settings{
+		StoragePath:   cfg.StoragePath,
+		StoreInterval: cfg.StoreInterval,
+		Restore:       cfg.Restore,
+	}
+	store := storage.New(repository, storageSettings)
 
+	ctx := context.Background()
+	if cfg.StoreInterval > 0 {
+		logger.Log.Debug(fmt.Sprintf("Activate periodic backups with interval %d seconds", cfg.StoreInterval))
+		go func() {
+			ticker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					logger.Log.Debug("Running periodic backup")
+					if err := store.Backup(); err != nil {
+						logger.Log.Error("Periodic backup failed", zap.Error(err))
+					}
+				}
+			}
+		}()
+	}
+
+	h := handler.NewHandler(store)
 	r := chi.NewRouter()
 	r.Use(logger.RequestLogger)
 	r.Use(handler.GzipMiddleware)
@@ -33,9 +64,40 @@ func main() {
 	r.Post("/value/", h.GetJSONHandler)
 	r.Post("/update/", h.UpdateJSONHandler)
 
+	server := &http.Server{Addr: cfg.Host, Handler: r}
+	serverCtx, serverStopCtx := context.WithCancel(context.Background())
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		<-sig
+
+		shutdownCtx, _ := context.WithTimeout(serverCtx, 10*time.Second)
+
+		go func() {
+			<-shutdownCtx.Done()
+			if shutdownCtx.Err() == context.DeadlineExceeded {
+				logger.Log.Fatal("Graceful shutdown timed out.. forcing exit.")
+			}
+		}()
+
+		logger.Log.Info("Shutting down server...")
+		err := server.Shutdown(shutdownCtx)
+		if err != nil {
+			logger.Log.Fatal("Server shutdown failed", zap.Error(err))
+		}
+		logger.Log.Info("Server stopped gracefully")
+
+		if err := store.Backup(); err != nil {
+			logger.Log.Error("Metrics backup failed", zap.Error(err))
+		}
+		serverStopCtx()
+	}()
+
 	logger.Log.Info("Starting server on", zap.String("host", cfg.Host))
-	err = http.ListenAndServe(cfg.Host, r)
-	if err != nil {
-		panic(err)
+	err = server.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		logger.Log.Fatal("Server quit unexpectedly", zap.Error(err))
 	}
+
+	<-serverCtx.Done()
 }

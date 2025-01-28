@@ -47,7 +47,7 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	if metricType == storage.TypeCounter {
+	if metricType == storage.MetricTypeCounter {
 		result = fmt.Sprintf("%d", value)
 	} else {
 		result = fmt.Sprintf("%g", value)
@@ -63,10 +63,10 @@ func (h *Handler) GetAllHandler(res http.ResponseWriter, req *http.Request) {
 	metrics, _ := h.storage.GetAll()
 
 	for _, metric := range metrics {
-		if metric.Type == storage.TypeCounter {
+		if metric.Type == storage.MetricTypeCounter {
 			result += fmt.Sprintf("%s: %d\n", metric.Name, metric.Value)
 		}
-		if metric.Type == storage.TypeGauge {
+		if metric.Type == storage.MetricTypeCounter {
 			result += fmt.Sprintf("%s: %f\n", metric.Name, metric.Value)
 		}
 
