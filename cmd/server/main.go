@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/derpartizanen/metrics/internal/repository/memstorage"
 	"github.com/derpartizanen/metrics/internal/storage"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 )
 
@@ -26,13 +28,19 @@ func main() {
 		log.Fatal(err)
 	}
 
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
+	if err != nil {
+		logger.Log.Error("can't connect to database")
+	}
+	defer db.Close()
+
 	repository := memstorage.New()
 	storageSettings := storage.Settings{
 		StoragePath:   cfg.StoragePath,
 		StoreInterval: cfg.StoreInterval,
 		Restore:       cfg.Restore,
 	}
-	store := storage.New(repository, storageSettings)
+	store := storage.New(repository, storageSettings, db)
 
 	ctx := context.Background()
 	if cfg.StoreInterval > 0 {
@@ -63,6 +71,7 @@ func main() {
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.UpdateHandler)
 	r.Post("/value/", h.GetJSONHandler)
 	r.Post("/update/", h.UpdateJSONHandler)
+	r.Get("/ping", h.PingHandler)
 
 	server := &http.Server{Addr: cfg.Host, Handler: r}
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())

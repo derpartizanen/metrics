@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ var (
 type Storage struct {
 	repository Repository
 	settings   Settings
+	DB         *sql.DB
 }
 
 type Settings struct {
@@ -43,8 +45,8 @@ type Repository interface {
 	SetAllMetrics(metrics []model.Metrics) error
 }
 
-func New(r Repository, s Settings) *Storage {
-	storage := &Storage{repository: r, settings: s}
+func New(r Repository, s Settings, db *sql.DB) *Storage {
+	storage := &Storage{repository: r, settings: s, DB: db}
 
 	if storage.settings.Restore {
 		err := storage.Restore()

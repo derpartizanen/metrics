@@ -20,7 +20,7 @@ func TestHandler_UpdateHandler(t *testing.T) {
 		StoreInterval: 300,
 		Restore:       false,
 	}
-	store := storage.New(repository, storageSettings)
+	store := storage.New(repository, storageSettings, nil)
 	h := NewHandler(store)
 
 	tests := []struct {
