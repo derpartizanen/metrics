@@ -14,7 +14,7 @@ func Test_updateMetrics(t *testing.T) {
 	}{
 		{name: "Alloc", metric: "Alloc", wantType: "gauge"},
 		{name: "RandomValue", metric: "RandomValue", wantType: "gauge"},
-		{name: "PollCounter", metric: "PollCounter", wantType: "counter"},
+		{name: "PollCount", metric: "PollCount", wantType: "counter"},
 	}
 
 	metrics := updateMetrics()
@@ -22,9 +22,9 @@ func Test_updateMetrics(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			found := false
 			for _, metric := range metrics {
-				if metric.Name == test.metric {
+				if metric.ID == test.metric {
 					found = true
-					assert.Equal(t, metric.Type, test.wantType)
+					assert.Equal(t, metric.MType, test.wantType)
 					break
 				}
 			}

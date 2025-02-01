@@ -1,25 +1,36 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"runtime"
 	"time"
 
 	"github.com/derpartizanen/metrics/internal/config"
+	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
+	"go.uber.org/zap"
 )
 
 var cfg *config.AgentConfig
 var counter int64
 
 func main() {
-	var metrics []model.Metric
+	var metrics []model.Metrics
+
+	err := logger.Initialize("INFO")
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger.Log.Info("Starting agent")
 
 	cfg = config.ConfigureAgent()
-	log.Println("Starting agent")
 	cfg.LogVars()
 
 	go func() {
@@ -31,70 +42,97 @@ func main() {
 
 	for {
 		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
-		err := reportMetrics(metrics)
-		if err != nil {
-			log.Fatal("report metric error: ", err)
-		}
+		reportMetrics(metrics)
 	}
 }
 
-func updateMetrics() []model.Metric {
-	var metrics []model.Metric
+func updateMetrics() []model.Metrics {
+	var metrics []model.Metrics
+	var memStats runtime.MemStats
 
-	m := &runtime.MemStats{}
-	runtime.ReadMemStats(m)
+	runtime.ReadMemStats(&memStats)
+	mValue := reflect.ValueOf(memStats)
+	mType := mValue.Type()
 
-	metrics = append(metrics, model.Metric{Name: "Alloc", Type: "gauge", Value: float64(m.Alloc)})
-	metrics = append(metrics, model.Metric{Name: "TotalAlloc", Type: "gauge", Value: float64(m.TotalAlloc)})
-	metrics = append(metrics, model.Metric{Name: "Sys", Type: "gauge", Value: float64(m.Sys)})
-	metrics = append(metrics, model.Metric{Name: "Lookups", Type: "gauge", Value: float64(m.Lookups)})
-	metrics = append(metrics, model.Metric{Name: "Mallocs", Type: "gauge", Value: float64(m.Mallocs)})
-	metrics = append(metrics, model.Metric{Name: "Frees", Type: "gauge", Value: float64(m.Frees)})
-	metrics = append(metrics, model.Metric{Name: "HeapAlloc", Type: "gauge", Value: float64(m.HeapAlloc)})
-	metrics = append(metrics, model.Metric{Name: "HeapSys", Type: "gauge", Value: float64(m.HeapSys)})
-	metrics = append(metrics, model.Metric{Name: "HeapIdle", Type: "gauge", Value: float64(m.HeapIdle)})
-	metrics = append(metrics, model.Metric{Name: "HeapInuse", Type: "gauge", Value: float64(m.HeapInuse)})
-	metrics = append(metrics, model.Metric{Name: "HeapReleased", Type: "gauge", Value: float64(m.HeapReleased)})
-	metrics = append(metrics, model.Metric{Name: "HeapObjects", Type: "gauge", Value: float64(m.HeapObjects)})
-	metrics = append(metrics, model.Metric{Name: "StackInuse", Type: "gauge", Value: float64(m.StackInuse)})
-	metrics = append(metrics, model.Metric{Name: "StackSys", Type: "gauge", Value: float64(m.StackSys)})
-	metrics = append(metrics, model.Metric{Name: "MSpanInuse", Type: "gauge", Value: float64(m.MSpanInuse)})
-	metrics = append(metrics, model.Metric{Name: "MSpanSys", Type: "gauge", Value: float64(m.MSpanSys)})
-	metrics = append(metrics, model.Metric{Name: "MCacheInuse", Type: "gauge", Value: float64(m.MCacheInuse)})
-	metrics = append(metrics, model.Metric{Name: "MCacheSys", Type: "gauge", Value: float64(m.MCacheSys)})
-	metrics = append(metrics, model.Metric{Name: "BuckHashSys", Type: "gauge", Value: float64(m.BuckHashSys)})
-	metrics = append(metrics, model.Metric{Name: "GCSys", Type: "gauge", Value: float64(m.GCSys)})
-	metrics = append(metrics, model.Metric{Name: "OtherSys", Type: "gauge", Value: float64(m.OtherSys)})
-	metrics = append(metrics, model.Metric{Name: "NextGC", Type: "gauge", Value: float64(m.NextGC)})
-	metrics = append(metrics, model.Metric{Name: "LastGC", Type: "gauge", Value: float64(m.LastGC)})
-	metrics = append(metrics, model.Metric{Name: "PauseTotalNs", Type: "gauge", Value: float64(m.PauseTotalNs)})
-	metrics = append(metrics, model.Metric{Name: "GCCPUFraction", Type: "gauge", Value: float64(m.GCCPUFraction)})
-	metrics = append(metrics, model.Metric{Name: "NumForcedGC", Type: "gauge", Value: float64(m.NumForcedGC)})
-	metrics = append(metrics, model.Metric{Name: "NumGC", Type: "gauge", Value: float64(m.NumGC)})
+	for _, metricName := range model.GaugeMetrics {
+		field, ok := mType.FieldByName(metricName)
+		if !ok {
+			continue
+		}
+
+		var value float64
+
+		switch mValue.FieldByName(metricName).Interface().(type) {
+		case uint64:
+			value = float64(mValue.FieldByName(metricName).Interface().(uint64))
+		case uint32:
+			value = float64(mValue.FieldByName(metricName).Interface().(uint32))
+		case float64:
+			value = mValue.FieldByName(metricName).Interface().(float64)
+		default:
+			return nil
+		}
+
+		metrics = append(metrics, model.Metrics{ID: field.Name, MType: "gauge", Value: &value})
+	}
 
 	counter += 1
-	metrics = append(metrics, model.Metric{Name: "RandomValue", Type: "gauge", Value: rand.Float64()})
-	metrics = append(metrics, model.Metric{Name: "PollCounter", Type: "counter", Value: counter})
+	metrics = append(metrics, model.Metrics{ID: "PollCount", MType: "counter", Delta: &counter})
+	random := rand.Float64()
+	metrics = append(metrics, model.Metrics{ID: "RandomValue", MType: "gauge", Value: &random})
 
 	return metrics
 }
 
-func reportMetrics(metrics []model.Metric) error {
-	reportURL := fmt.Sprintf("http://%s/update", cfg.ReportEndpoint)
+func reportMetrics(metrics []model.Metrics) {
+	reportURL := fmt.Sprintf("http://%s/update/", cfg.ReportEndpoint)
+	client := &http.Client{}
 	for _, metric := range metrics {
-		client := &http.Client{}
-		endpoint := fmt.Sprintf("%s/%s/%s/%v", reportURL, metric.Type, metric.Name, metric.Value)
-		req, err := http.NewRequest(http.MethodPost, endpoint, nil)
+		jsonStr, err := json.Marshal(metric)
 		if err != nil {
-			return err
+			logger.Log.Error("error marshal metric", zap.Error(err))
+			continue
 		}
-		req.Header.Add("Content-Type", "text/plain")
+
+		gzipData, err := compressData(jsonStr)
+		if err != nil {
+			logger.Log.Error("error compress data:", zap.Error(err))
+			continue
+		}
+
+		req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(gzipData))
+		if err != nil {
+			logger.Log.Error("new request error", zap.Error(err))
+			continue
+		}
+		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Content-Encoding", "gzip")
 		res, err := client.Do(req)
 		if err != nil {
-			return err
+			logger.Log.Error("send request error", zap.Error(err))
+			continue
 		}
 		res.Body.Close()
+		//logger.Log.Info("send request", zap.ByteString("payload", jsonStr))
+	}
+}
+
+func compressData(data []byte) ([]byte, error) {
+	var b bytes.Buffer
+	w, err := gzip.NewWriterLevel(&b, gzip.BestSpeed)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	_, err = w.Write(data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = w.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return b.Bytes(), nil
 }

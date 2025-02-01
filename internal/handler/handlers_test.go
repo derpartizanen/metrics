@@ -15,7 +15,12 @@ import (
 func TestHandler_UpdateHandler(t *testing.T) {
 	var baseURL = "http://localhost:8080"
 	repository := memstorage.New()
-	store := storage.New(repository)
+	storageSettings := storage.Settings{
+		StoragePath:   "/tmp/test-storage.json",
+		StoreInterval: 300,
+		Restore:       false,
+	}
+	store := storage.New(repository, storageSettings)
 	h := NewHandler(store)
 
 	tests := []struct {
