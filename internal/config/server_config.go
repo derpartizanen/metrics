@@ -12,6 +12,7 @@ type ServerConfig struct {
 	StoreInterval int64  `env:"STORE_INTERVAL"`
 	Restore       bool   `env:"RESTORE"`
 	Loglevel      string `env:"LOG_LEVEL"`
+	DatabaseDSN   string `env:"DATABASE_DSN"`
 }
 
 func ConfigureServer() *ServerConfig {
@@ -31,6 +32,9 @@ func ConfigureServer() *ServerConfig {
 	if !config.Restore {
 		config.Restore = flagConfig.Restore
 	}
+	if config.DatabaseDSN == "" {
+		config.DatabaseDSN = flagConfig.DatabaseDSN
+	}
 	if config.Loglevel == "" {
 		config.Loglevel = flagConfig.Loglevel
 	}
@@ -44,6 +48,7 @@ func parseServerFlags() *ServerConfig {
 	flag.StringVar(&config.StoragePath, "f", "/tmp/metrics-storage.json", "path to file to store metrics")
 	flag.Int64Var(&config.StoreInterval, "i", 300, "interval of storing metrics")
 	flag.BoolVar(&config.Restore, "r", true, "load metrics from file")
+	flag.StringVar(&config.DatabaseDSN, "d", "", "database DSN")
 	flag.StringVar(&config.Loglevel, "l", "DEBUG", "log level")
 	flag.Parse()
 

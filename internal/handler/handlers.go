@@ -142,3 +142,14 @@ func (h *Handler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) 
 	res.WriteHeader(http.StatusOK)
 	res.Write(resp)
 }
+
+func (h *Handler) PingHandler(res http.ResponseWriter, req *http.Request) {
+	err := h.storage.DB.Ping()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "text/html")
+	res.WriteHeader(http.StatusOK)
+}
