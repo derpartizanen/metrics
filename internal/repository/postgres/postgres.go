@@ -3,15 +3,15 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"os"
-	"path/filepath"
+	"embed"
 
 	"github.com/derpartizanen/metrics/internal/model"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/pressly/goose/v3"
 )
+
+//go:embed migrations/*.sql
+var embedMigrations embed.FS
 
 type PgStorage struct {
 	db  *sql.DB
@@ -136,53 +136,15 @@ func (s *PgStorage) Ping() error {
 }
 
 func applyMigrations(db *sql.DB) error {
-	dir := currentDir()
-	fmt.Println(dir)
-	listDir("./")
-	listDir("./internal")
-	listDir("./internal/repository")
+	goose.SetBaseFS(embedMigrations)
 
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {
+	if err := goose.SetDialect("postgres"); err != nil {
 		return err
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://internal/repository/postgres/migrations",
-		"postgres", driver)
-	if err != nil {
-		return err
-	}
-
-	err = m.Up()
-
-	if err != nil && err != migrate.ErrNoChange {
+	if err := goose.Up(db, "migrations"); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func currentDir() string {
-	ex, err := os.Executable()
-	if err != nil {
-		panic(err)
-	}
-	exPath := filepath.Dir(ex)
-	dir := fmt.Sprintf("current dir: %s", exPath)
-
-	return dir
-}
-
-func listDir(dir string) {
-	fmt.Printf("---- directory %s ------\n", dir)
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, file := range files {
-		fmt.Println(file)
-	}
-	fmt.Println("----------------")
 }
