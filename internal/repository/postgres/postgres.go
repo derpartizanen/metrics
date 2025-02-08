@@ -3,6 +3,9 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/derpartizanen/metrics/internal/model"
 	"github.com/golang-migrate/migrate/v4"
@@ -133,13 +136,16 @@ func (s *PgStorage) Ping() error {
 }
 
 func runMigrations(db *sql.DB) error {
+	dir := currentDir()
+	fmt.Println(dir)
+
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		return err
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
+		"file:///migrations",
 		"postgres", driver)
 	if err != nil {
 		return err
@@ -152,4 +158,15 @@ func runMigrations(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func currentDir() string {
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	exPath := filepath.Dir(ex)
+	dir := fmt.Sprintf("current dir: %s", exPath)
+
+	return dir
 }
