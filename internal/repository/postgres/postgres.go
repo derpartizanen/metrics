@@ -139,11 +139,8 @@ func runMigrations(db *sql.DB) error {
 	dir := currentDir()
 	fmt.Println(dir)
 	listDir("./")
-	fmt.Println("--------")
-	listDir("../")
-	fmt.Println("--------")
-	listDir("../../")
-	fmt.Println("--------")
+	listDir("./internal")
+	listDir("../cmd")
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
@@ -178,6 +175,7 @@ func currentDir() string {
 }
 
 func listDir(dir string) {
+	fmt.Printf("---- directory %s ------\n", dir)
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
@@ -186,4 +184,5 @@ func listDir(dir string) {
 	for _, file := range files {
 		fmt.Println(file)
 	}
+	fmt.Println("----------------")
 }
