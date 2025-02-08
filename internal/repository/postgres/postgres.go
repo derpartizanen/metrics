@@ -24,7 +24,7 @@ func New(ctx context.Context, dsn string) (*PgStorage, error) {
 		return nil, err
 	}
 
-	err = runMigrations(db)
+	err = applyMigrations(db)
 	if err != nil {
 		return nil, err
 	}
@@ -135,12 +135,12 @@ func (s *PgStorage) Ping() error {
 	return s.db.Ping()
 }
 
-func runMigrations(db *sql.DB) error {
+func applyMigrations(db *sql.DB) error {
 	dir := currentDir()
 	fmt.Println(dir)
 	listDir("./")
 	listDir("./internal")
-	listDir("../cmd")
+	listDir("./internal/repository")
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
@@ -148,7 +148,7 @@ func runMigrations(db *sql.DB) error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://../migrations",
+		"file://internal/repository/postgres/migrations",
 		"postgres", driver)
 	if err != nil {
 		return err
