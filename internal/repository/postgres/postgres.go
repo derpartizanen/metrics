@@ -138,6 +138,12 @@ func (s *PgStorage) Ping() error {
 func runMigrations(db *sql.DB) error {
 	dir := currentDir()
 	fmt.Println(dir)
+	listDir("./")
+	fmt.Println("--------")
+	listDir("../")
+	fmt.Println("--------")
+	listDir("../../")
+	fmt.Println("--------")
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
@@ -145,7 +151,7 @@ func runMigrations(db *sql.DB) error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file:///migrations",
+		"file://../migrations",
 		"postgres", driver)
 	if err != nil {
 		return err
@@ -169,4 +175,15 @@ func currentDir() string {
 	dir := fmt.Sprintf("current dir: %s", exPath)
 
 	return dir
+}
+
+func listDir(dir string) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, file := range files {
+		fmt.Println(file)
+	}
 }
