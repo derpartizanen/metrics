@@ -89,6 +89,7 @@ func (s *PgStorage) GetAllMetrics() ([]model.Metrics, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var m model.Metrics
@@ -98,6 +99,11 @@ func (s *PgStorage) GetAllMetrics() ([]model.Metrics, error) {
 		}
 
 		metrics = append(metrics, m)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
 	}
 
 	return metrics, nil
@@ -128,8 +134,12 @@ func (s *PgStorage) Ping() error {
 
 func runMigrations(db *sql.DB) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://../../migrations",
+		"file://./migrations",
 		"postgres", driver)
 	if err != nil {
 		return err
