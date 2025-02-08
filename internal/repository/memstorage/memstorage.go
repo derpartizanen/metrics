@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/derpartizanen/metrics/internal/model"
-	"github.com/derpartizanen/metrics/internal/storage"
 )
 
 var (
@@ -53,19 +52,27 @@ func (s *MemStorage) GetCounterMetric(metricName string) (int64, error) {
 	return 0, ErrNotFound
 }
 
-func (s *MemStorage) GetAllMetrics() (map[string]float64, map[string]int64, error) {
-	return s.gauge, s.counter, nil
+func (s *MemStorage) GetAllMetrics() ([]model.Metrics, error) {
+	var metrics []model.Metrics
+	for name, value := range s.gauge {
+		metrics = append(metrics, model.Metrics{ID: name, MType: "gauge", Value: &value})
+	}
+	for name, value := range s.counter {
+		metrics = append(metrics, model.Metrics{ID: name, MType: "counter", Delta: &value})
+	}
+
+	return metrics, nil
 }
 
 func (s *MemStorage) SetAllMetrics(metrics []model.Metrics) error {
 	for _, metric := range metrics {
-		if metric.MType == storage.MetricTypeCounter {
+		if metric.MType == model.MetricTypeCounter {
 			err := s.UpdateCounterMetric(metric.ID, *metric.Delta)
 			if err != nil {
 				return err
 			}
 		}
-		if metric.MType == storage.MetricTypeGauge {
+		if metric.MType == model.MetricTypeGauge {
 			err := s.UpdateGaugeMetric(metric.ID, *metric.Value)
 			if err != nil {
 				return err
@@ -73,5 +80,9 @@ func (s *MemStorage) SetAllMetrics(metrics []model.Metrics) error {
 		}
 	}
 
+	return nil
+}
+
+func (s *MemStorage) Ping() error {
 	return nil
 }

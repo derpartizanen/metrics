@@ -1,26 +1,22 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/derpartizanen/metrics/internal/repository/memstorage"
+	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/storage"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHandler_UpdateHandler(t *testing.T) {
 	var baseURL = "http://localhost:8080"
-	repository := memstorage.New()
-	storageSettings := storage.Settings{
-		StoragePath:   "/tmp/test-storage.json",
-		StoreInterval: 300,
-		Restore:       false,
-	}
-	store := storage.New(repository, storageSettings, nil)
+	cfg := config.ConfigureServer()
+	store := storage.New(context.Background(), cfg)
 	h := NewHandler(store)
 
 	tests := []struct {

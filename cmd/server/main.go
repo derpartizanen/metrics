@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/handler"
 	"github.com/derpartizanen/metrics/internal/logger"
-	"github.com/derpartizanen/metrics/internal/repository/memstorage"
 	"github.com/derpartizanen/metrics/internal/storage"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -28,21 +26,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db, err := sql.Open("pgx", cfg.DatabaseDSN)
-	if err != nil {
-		logger.Log.Error("can't connect to database")
-	}
-	defer db.Close()
-
-	repository := memstorage.New()
-	storageSettings := storage.Settings{
-		StoragePath:   cfg.StoragePath,
-		StoreInterval: cfg.StoreInterval,
-		Restore:       cfg.Restore,
-	}
-	store := storage.New(repository, storageSettings, db)
-
 	ctx := context.Background()
+	store := storage.New(ctx, cfg)
+
 	if cfg.StoreInterval > 0 {
 		logger.Log.Debug(fmt.Sprintf("Activate periodic backups with interval %d seconds", cfg.StoreInterval))
 		go func() {
