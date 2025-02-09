@@ -96,16 +96,19 @@ func reportMetrics(metrics []model.Metrics) {
 	jsonStr, err := json.Marshal(metrics)
 	if err != nil {
 		logger.Log.Error("error marshal metrics", zap.Error(err))
+		return
 	}
 
 	gzipData, err := compressData(jsonStr)
 	if err != nil {
 		logger.Log.Error("error compress data:", zap.Error(err))
+		return
 	}
 
 	req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(gzipData))
 	if err != nil {
 		logger.Log.Error("new request error", zap.Error(err))
+		return
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -113,9 +116,10 @@ func reportMetrics(metrics []model.Metrics) {
 	res, err := client.Do(req)
 	if err != nil {
 		logger.Log.Error("send request error", zap.Error(err))
-	} else {
-		logger.Log.Debug(fmt.Sprintf("send batch request with %d metrics", len(metrics)))
+		return
 	}
+
+	logger.Log.Debug(fmt.Sprintf("send batch request with %d metrics", len(metrics)))
 	res.Body.Close()
 }
 
