@@ -113,22 +113,31 @@ func (s *PgStorage) GetAllMetrics() ([]model.Metrics, error) {
 }
 
 func (s *PgStorage) SetAllMetrics(metrics []model.Metrics) error {
-	for _, metric := range metrics {
-		if metric.MType == model.MetricTypeCounter {
-			err := s.UpdateCounterMetric(metric.ID, *metric.Delta)
-			if err != nil {
-				return err
-			}
-		}
-		if metric.MType == model.MetricTypeGauge {
-			err := s.UpdateGaugeMetric(metric.ID, *metric.Value)
-			if err != nil {
-				return err
-			}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	query := `
+		INSERT INTO metric (id, type, value, delta) VALUES($1, $2, $3, $4)
+		ON CONFLICT (id) DO UPDATE SET delta = metric.delta + EXCLUDED.delta, value = EXCLUDED.value
+	`
+
+	stmt, err := tx.PrepareContext(s.ctx, query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, m := range metrics {
+		_, err := stmt.ExecContext(s.ctx, m.ID, m.MType, m.Value, m.Delta)
+		if err != nil {
+			return err
 		}
 	}
 
-	return nil
+	return tx.Commit()
 }
 
 func (s *PgStorage) Ping() error {

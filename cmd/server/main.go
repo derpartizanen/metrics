@@ -57,6 +57,7 @@ func main() {
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.UpdateHandler)
 	r.Post("/value/", h.GetJSONHandler)
 	r.Post("/update/", h.UpdateJSONHandler)
+	r.Post("/updates/", h.BatchUpdateJSONHandler)
 	r.Get("/ping", h.PingHandler)
 
 	server := &http.Server{Addr: cfg.Host, Handler: r}

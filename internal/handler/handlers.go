@@ -153,6 +153,26 @@ func (h *Handler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) 
 	res.Write(resp)
 }
 
+func (h *Handler) BatchUpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
+	decoder := json.NewDecoder(req.Body)
+	defer req.Body.Close()
+
+	var metrics []model.Metrics
+	err := decoder.Decode(&metrics)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = h.storage.SetAllMetrics(metrics)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+}
+
 func (h *Handler) PingHandler(res http.ResponseWriter, req *http.Request) {
 	err := h.storage.Ping()
 	if err != nil {

@@ -85,36 +85,38 @@ func updateMetrics() []model.Metrics {
 }
 
 func reportMetrics(metrics []model.Metrics) {
-	reportURL := fmt.Sprintf("http://%s/update/", cfg.ReportEndpoint)
-	client := &http.Client{}
-	for _, metric := range metrics {
-		jsonStr, err := json.Marshal(metric)
-		if err != nil {
-			logger.Log.Error("error marshal metric", zap.Error(err))
-			continue
-		}
-
-		gzipData, err := compressData(jsonStr)
-		if err != nil {
-			logger.Log.Error("error compress data:", zap.Error(err))
-			continue
-		}
-
-		req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(gzipData))
-		if err != nil {
-			logger.Log.Error("new request error", zap.Error(err))
-			continue
-		}
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Content-Encoding", "gzip")
-		res, err := client.Do(req)
-		if err != nil {
-			logger.Log.Error("send request error", zap.Error(err))
-			continue
-		}
-		res.Body.Close()
-		//logger.Log.Info("send request", zap.ByteString("payload", jsonStr))
+	if len(metrics) == 0 {
+		logger.Log.Info("no metrics, skip report")
+		return
 	}
+
+	reportURL := fmt.Sprintf("http://%s/updates/", cfg.ReportEndpoint)
+	client := &http.Client{}
+
+	jsonStr, err := json.Marshal(metrics)
+	if err != nil {
+		logger.Log.Error("error marshal metrics", zap.Error(err))
+	}
+
+	gzipData, err := compressData(jsonStr)
+	if err != nil {
+		logger.Log.Error("error compress data:", zap.Error(err))
+	}
+
+	req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(gzipData))
+	if err != nil {
+		logger.Log.Error("new request error", zap.Error(err))
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Encoding", "gzip")
+	res, err := client.Do(req)
+	if err != nil {
+		logger.Log.Error("send request error", zap.Error(err))
+	} else {
+		logger.Log.Debug(fmt.Sprintf("send batch request with %d metrics", len(metrics)))
+	}
+	res.Body.Close()
 }
 
 func compressData(data []byte) ([]byte, error) {
