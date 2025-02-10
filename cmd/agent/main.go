@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -16,6 +17,10 @@ import (
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrDoRequest = errors.New("execution request error")
 )
 
 var cfg *config.AgentConfig
@@ -42,7 +47,7 @@ func main() {
 
 	for {
 		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
-		reportMetrics(metrics)
+		reportMetricsWithRetry(metrics, 3)
 	}
 }
 
@@ -84,10 +89,29 @@ func updateMetrics() []model.Metrics {
 	return metrics
 }
 
-func reportMetrics(metrics []model.Metrics) {
+func reportMetricsWithRetry(metrics []model.Metrics, retryCount int) {
+	var err error
+	for i := 1; i <= retryCount; i++ {
+		err = reportMetrics(metrics)
+		if i == retryCount {
+			break
+		}
+		if err != nil && errors.Is(err, ErrDoRequest) {
+			logger.Log.Info(fmt.Sprintf("retry %d to report metrics", i))
+			time.Sleep(time.Duration(i+i-1) * time.Second)
+			continue
+		}
+		break
+	}
+
+	if err != nil {
+		logger.Log.Error("failed to report metrics", zap.Error(err))
+	}
+}
+
+func reportMetrics(metrics []model.Metrics) error {
 	if len(metrics) == 0 {
-		logger.Log.Info("no metrics, skip report")
-		return
+		return errors.New("empty metrics")
 	}
 
 	reportURL := fmt.Sprintf("http://%s/updates/", cfg.ReportEndpoint)
@@ -95,32 +119,30 @@ func reportMetrics(metrics []model.Metrics) {
 
 	jsonStr, err := json.Marshal(metrics)
 	if err != nil {
-		logger.Log.Error("error marshal metrics", zap.Error(err))
-		return
+		return errors.New("can't marshal data")
 	}
 
 	gzipData, err := compressData(jsonStr)
 	if err != nil {
-		logger.Log.Error("error compress data:", zap.Error(err))
-		return
+		return errors.New("can't compress data")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, reportURL, bytes.NewBuffer(gzipData))
 	if err != nil {
-		logger.Log.Error("new request error", zap.Error(err))
-		return
+		return errors.New("new request error")
 	}
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Content-Encoding", "gzip")
 	res, err := client.Do(req)
 	if err != nil {
-		logger.Log.Error("send request error", zap.Error(err))
-		return
+		return ErrDoRequest
 	}
 
 	logger.Log.Debug(fmt.Sprintf("send batch request with %d metrics", len(metrics)))
 	res.Body.Close()
+
+	return nil
 }
 
 func compressData(data []byte) ([]byte, error) {

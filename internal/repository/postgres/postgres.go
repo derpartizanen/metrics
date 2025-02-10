@@ -4,14 +4,25 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
+	"fmt"
+	"time"
 
+	"github.com/avast/retry-go"
+	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pressly/goose/v3"
 )
 
 //go:embed migrations/*.sql
 var embedMigrations embed.FS
+
+const (
+	retryAttempts = 3
+)
 
 type PgStorage struct {
 	db  *sql.DB
@@ -40,7 +51,22 @@ func New(ctx context.Context, dsn string) (*PgStorage, error) {
 func (s *PgStorage) UpdateGaugeMetric(name string, value float64) error {
 	query := `INSERT INTO metric (id, type, value, delta) VALUES ($1, $2, $3, $4)
               ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value`
-	_, err := s.db.ExecContext(s.ctx, query, name, model.MetricTypeGauge, value, nil)
+
+	var err error
+	_ = retry.Do(
+		func() error {
+			_, err = s.db.ExecContext(s.ctx, query, name, model.MetricTypeGauge, value, nil)
+			if isRetryableError(err) {
+				return err
+			}
+			return nil
+		},
+		retry.Attempts(retryAttempts),
+		retry.DelayType(retryDelayType),
+		retry.OnRetry(func(n uint, err error) {
+			logger.Log.Error(fmt.Sprintf("retry #%d to update gauge metric", n))
+		}),
+	)
 
 	return err
 }
@@ -48,7 +74,22 @@ func (s *PgStorage) UpdateGaugeMetric(name string, value float64) error {
 func (s *PgStorage) UpdateCounterMetric(name string, value int64) error {
 	query := `INSERT INTO metric (id, type, value, delta) VALUES ($1, $2, $3, $4)
               ON CONFLICT (id) DO UPDATE SET delta = metric.delta + EXCLUDED.delta`
-	_, err := s.db.ExecContext(s.ctx, query, name, model.MetricTypeCounter, nil, value)
+
+	var err error
+	_ = retry.Do(
+		func() error {
+			_, err := s.db.ExecContext(s.ctx, query, name, model.MetricTypeCounter, nil, value)
+			if isRetryableError(err) {
+				return err
+			}
+			return nil
+		},
+		retry.Attempts(retryAttempts),
+		retry.DelayType(retryDelayType),
+		retry.OnRetry(func(n uint, err error) {
+			logger.Log.Error(fmt.Sprintf("retry #%d to update counter metric", n))
+		}),
+	)
 
 	return err
 }
@@ -156,4 +197,24 @@ func applyMigrations(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func isRetryableError(err error) bool {
+	var pgErr *pgconn.PgError
+	if err != nil && errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
+		return true
+	}
+
+	return false
+}
+
+func retryDelayType(n uint, err error, config *retry.Config) time.Duration {
+	switch n {
+	case 0:
+		return 1 * time.Second
+	case 1:
+		return 3 * time.Second
+	default:
+		return 5 * time.Second
+	}
 }

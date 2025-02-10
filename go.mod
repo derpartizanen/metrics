@@ -3,9 +3,11 @@ module github.com/derpartizanen/metrics
 go 1.22.10
 
 require (
+	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/golang-migrate/migrate/v4 v4.18.2
+	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/pressly/goose/v3 v3.24.1
 	github.com/stretchr/testify v1.10.0
