@@ -1,11 +1,13 @@
 package storage
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/derpartizanen/metrics/internal/config"
+	"github.com/derpartizanen/metrics/internal/interfaces"
 	"github.com/derpartizanen/metrics/internal/repository/memstorage"
 	"github.com/derpartizanen/metrics/internal/repository/postgres"
 	"os"
@@ -16,10 +18,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	FilePermissionAllRW = 0666
-)
-
 var (
 	ErrInvalidGaugeMetricValue   = errors.New("invalid gauge metric value")
 	ErrInvalidCounterMetricValue = errors.New("invalid counter metric value")
@@ -27,23 +25,13 @@ var (
 )
 
 type Storage struct {
-	repository Repository
+	repository interfaces.Repository
 	settings   Settings
 }
 
 type Settings struct {
 	StoragePath   string
 	StoreInterval int64
-}
-
-type Repository interface {
-	UpdateCounterMetric(string, int64) error
-	UpdateGaugeMetric(string, float64) error
-	GetGaugeMetric(string) (float64, error)
-	GetCounterMetric(string) (int64, error)
-	GetAllMetrics() ([]model.Metrics, error)
-	SetAllMetrics(metrics []model.Metrics) error
-	Ping() error
 }
 
 func New(ctx context.Context, cfg *config.ServerConfig) *Storage {
@@ -93,15 +81,27 @@ func (s *Storage) Restore() error {
 
 func (s *Storage) Backup() error {
 	logger.Log.Debug("Backing up metrics to file")
+
+	f, err := os.Create(s.settings.StoragePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	writer := bufio.NewWriter(f)
+	encoder := json.NewEncoder(writer)
+	encoder.SetIndent("", "    ")
+
 	metrics, err := s.GetAllMetrics()
 	if err != nil {
 		return err
 	}
-	metricsJSON, err := json.MarshalIndent(metrics, "", "   ")
-	if err != nil {
+
+	if err := encoder.Encode(metrics); err != nil {
 		return err
 	}
-	return os.WriteFile(s.settings.StoragePath, metricsJSON, FilePermissionAllRW)
+
+	return writer.Flush()
 }
 
 func (s *Storage) Save(metricType string, metricName string, value string) error {
