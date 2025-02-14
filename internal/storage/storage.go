@@ -1,20 +1,21 @@
 package storage
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/derpartizanen/metrics/internal/config"
+	"github.com/derpartizanen/metrics/internal/interfaces"
+	"github.com/derpartizanen/metrics/internal/repository/memstorage"
+	"github.com/derpartizanen/metrics/internal/repository/postgres"
 	"os"
 	"strconv"
 
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
 	"go.uber.org/zap"
-)
-
-const (
-	MetricTypeCounter = "counter"
-	MetricTypeGauge   = "gauge"
 )
 
 var (
@@ -24,29 +25,33 @@ var (
 )
 
 type Storage struct {
-	repository Repository
+	repository interfaces.Repository
 	settings   Settings
 }
 
 type Settings struct {
 	StoragePath   string
 	StoreInterval int64
-	Restore       bool
 }
 
-type Repository interface {
-	UpdateCounterMetric(string, int64) error
-	UpdateGaugeMetric(string, float64) error
-	GetGaugeMetric(string) (float64, error)
-	GetCounterMetric(string) (int64, error)
-	GetAllMetrics() (map[string]float64, map[string]int64, error)
-	SetAllMetrics(metrics []model.Metrics) error
-}
+func New(ctx context.Context, cfg *config.ServerConfig) *Storage {
+	settings := Settings{
+		StoragePath:   cfg.StoragePath,
+		StoreInterval: cfg.StoreInterval,
+	}
 
-func New(r Repository, s Settings) *Storage {
-	storage := &Storage{repository: r, settings: s}
+	if cfg.DatabaseDSN != "" {
+		repo, err := postgres.New(ctx, cfg.DatabaseDSN)
+		if err != nil {
+			logger.Log.Fatal("Init database storage error", zap.Error(err))
+		}
 
-	if storage.settings.Restore {
+		return &Storage{repository: repo, settings: settings}
+	}
+
+	repo := memstorage.New()
+	storage := &Storage{repository: repo, settings: settings}
+	if cfg.Restore {
 		err := storage.Restore()
 		if err != nil {
 			logger.Log.Error("Restore failed", zap.Error(err))
@@ -76,19 +81,31 @@ func (s *Storage) Restore() error {
 
 func (s *Storage) Backup() error {
 	logger.Log.Debug("Backing up metrics to file")
+
+	f, err := os.Create(s.settings.StoragePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	writer := bufio.NewWriter(f)
+	encoder := json.NewEncoder(writer)
+	encoder.SetIndent("", "    ")
+
 	metrics, err := s.GetAllMetrics()
 	if err != nil {
 		return err
 	}
-	metricsJSON, err := json.MarshalIndent(metrics, "", "   ")
-	if err != nil {
+
+	if err := encoder.Encode(metrics); err != nil {
 		return err
 	}
-	return os.WriteFile(s.settings.StoragePath, metricsJSON, 0666)
+
+	return writer.Flush()
 }
 
 func (s *Storage) Save(metricType string, metricName string, value string) error {
-	if metricType == MetricTypeCounter {
+	if metricType == model.MetricTypeCounter {
 		intValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return ErrInvalidCounterMetricValue
@@ -97,7 +114,7 @@ func (s *Storage) Save(metricType string, metricName string, value string) error
 		return s.repository.UpdateCounterMetric(metricName, intValue)
 	}
 
-	if metricType == MetricTypeGauge {
+	if metricType == model.MetricTypeGauge {
 		floatValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return ErrInvalidGaugeMetricValue
@@ -112,12 +129,12 @@ func (s *Storage) Save(metricType string, metricName string, value string) error
 func (s *Storage) SaveMetric(metric model.Metrics) error {
 	var err error
 
-	if metric.MType == MetricTypeCounter {
+	if metric.MType == model.MetricTypeCounter {
 		if metric.Delta == nil {
 			return ErrInvalidCounterMetricValue
 		}
 		err = s.repository.UpdateCounterMetric(metric.ID, *metric.Delta)
-	} else if metric.MType == MetricTypeGauge {
+	} else if metric.MType == model.MetricTypeGauge {
 		err = s.repository.UpdateGaugeMetric(metric.ID, *metric.Value)
 	} else {
 		err = ErrInvalidMetricType
@@ -139,13 +156,13 @@ func (s *Storage) SaveMetric(metric model.Metrics) error {
 }
 
 func (s *Storage) Get(metricType string, metricName string) (interface{}, error) {
-	if metricType == MetricTypeGauge {
+	if metricType == model.MetricTypeGauge {
 		value, err := s.repository.GetGaugeMetric(metricName)
 
 		return value, err
 	}
 
-	if metricType == MetricTypeCounter {
+	if metricType == model.MetricTypeCounter {
 		value, err := s.repository.GetCounterMetric(metricName)
 
 		return value, err
@@ -155,7 +172,7 @@ func (s *Storage) Get(metricType string, metricName string) (interface{}, error)
 }
 
 func (s *Storage) GetMetric(metric *model.Metrics) error {
-	if metric.MType == MetricTypeGauge {
+	if metric.MType == model.MetricTypeGauge {
 		value, err := s.repository.GetGaugeMetric(metric.ID)
 		if err != nil {
 			return err
@@ -163,7 +180,7 @@ func (s *Storage) GetMetric(metric *model.Metrics) error {
 		metric.Value = &value
 	}
 
-	if metric.MType == MetricTypeCounter {
+	if metric.MType == model.MetricTypeCounter {
 		value, err := s.repository.GetCounterMetric(metric.ID)
 		if err != nil {
 			return err
@@ -174,29 +191,10 @@ func (s *Storage) GetMetric(metric *model.Metrics) error {
 	return nil
 }
 
-func (s *Storage) GetAll() ([]model.Metric, error) {
-	gauges, counters, _ := s.repository.GetAllMetrics()
-
-	var metrics []model.Metric
-	for name, value := range gauges {
-		metrics = append(metrics, model.Metric{Name: name, Type: "gauge", Value: value})
-	}
-	for name, value := range counters {
-		metrics = append(metrics, model.Metric{Name: name, Type: "counter", Value: value})
-	}
-
-	return metrics, nil
-}
-
 func (s *Storage) GetAllMetrics() ([]model.Metrics, error) {
-	gauges, counters, _ := s.repository.GetAllMetrics()
-
-	var metrics []model.Metrics
-	for name, value := range gauges {
-		metrics = append(metrics, model.Metrics{ID: name, MType: "gauge", Value: &value})
-	}
-	for name, value := range counters {
-		metrics = append(metrics, model.Metrics{ID: name, MType: "counter", Delta: &value})
+	metrics, err := s.repository.GetAllMetrics()
+	if err != nil {
+		logger.Log.Error("Get metrics error")
 	}
 
 	return metrics, nil
@@ -204,4 +202,8 @@ func (s *Storage) GetAllMetrics() ([]model.Metrics, error) {
 
 func (s *Storage) SetAllMetrics(metrics []model.Metrics) error {
 	return s.repository.SetAllMetrics(metrics)
+}
+
+func (s *Storage) Ping() error {
+	return s.repository.Ping()
 }

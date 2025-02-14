@@ -1,10 +1,9 @@
 package model
 
-type Metric struct {
-	Name  string
-	Type  string
-	Value interface{}
-}
+const (
+	MetricTypeCounter = "counter"
+	MetricTypeGauge   = "gauge"
+)
 
 type Metrics struct {
 	ID    string   `json:"id"`
