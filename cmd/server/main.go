@@ -49,10 +49,12 @@ func main() {
 		}()
 	}
 
-	h := handler.NewHandler(store)
+	h := handler.NewHandler(store, cfg.Key)
 	r := chi.NewRouter()
 	r.Use(logger.RequestLogger)
 	r.Use(handler.GzipMiddleware)
+	hm := handler.NewHashMiddleware(cfg.Key)
+	r.Use(hm.VerifyHash)
 	r.Get("/", h.GetAllHandler)
 	r.Get("/value/{metricType}/{metricName}", h.GetHandler)
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.UpdateHandler)

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/derpartizanen/metrics/internal/config"
+	"github.com/derpartizanen/metrics/internal/hash"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
 	"go.uber.org/zap"
@@ -134,6 +135,12 @@ func reportMetrics(metrics []model.Metrics) error {
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Content-Encoding", "gzip")
+
+	if cfg.HashKey != "" {
+		hash := hash.Calc(cfg.HashKey, jsonStr)
+		req.Header.Add("HashSHA256", hash)
+	}
+
 	res, err := client.Do(req)
 	if err != nil {
 		return ErrDoRequest
