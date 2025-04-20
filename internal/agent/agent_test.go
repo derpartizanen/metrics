@@ -1,12 +1,16 @@
-package main
+package agent
 
 import (
-	"testing"
-
+	"github.com/derpartizanen/metrics/internal/model"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-func Test_updateMetrics(t *testing.T) {
+func Test_collectMetrics(t *testing.T) {
+	metricsAgent := Agent{
+		Metrics: make([]model.Metrics, 0),
+	}
+
 	tests := []struct {
 		name     string
 		metric   string
@@ -17,11 +21,12 @@ func Test_updateMetrics(t *testing.T) {
 		{name: "PollCount", metric: "PollCount", wantType: "counter"},
 	}
 
-	metrics := updateMetrics()
+	metricsAgent.CollectMemStatsMetrics()
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			found := false
-			for _, metric := range metrics {
+			for _, metric := range metricsAgent.Metrics {
 				if metric.ID == test.metric {
 					found = true
 					assert.Equal(t, metric.MType, test.wantType)

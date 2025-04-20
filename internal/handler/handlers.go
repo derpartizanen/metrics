@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/derpartizanen/metrics/internal/hash"
 	"github.com/derpartizanen/metrics/internal/repository/memstorage"
 	"io"
 	"net/http"
@@ -13,13 +14,17 @@ import (
 	"github.com/derpartizanen/metrics/internal/storage"
 )
 
+const HashHeader = "HashSHA256"
+
 type Handler struct {
 	storage *storage.Storage
+	hashKey string
 }
 
-func NewHandler(storage *storage.Storage) *Handler {
+func NewHandler(storage *storage.Storage, hashKey string) *Handler {
 	return &Handler{
 		storage: storage,
+		hashKey: hashKey,
 	}
 }
 
@@ -64,6 +69,7 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.Header().Set("Content-Type", "text/plain")
+	res.Header().Set(HashHeader, hash.Calc(h.hashKey, []byte(result)))
 	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, result)
 }
@@ -82,6 +88,7 @@ func (h *Handler) GetAllHandler(res http.ResponseWriter, req *http.Request) {
 
 	}
 	res.Header().Set("Content-Type", "text/html")
+	res.Header().Set(HashHeader, hash.Calc(h.hashKey, []byte(result)))
 	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, result)
 }
@@ -115,6 +122,7 @@ func (h *Handler) GetJSONHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	res.Header().Set(HashHeader, hash.Calc(h.hashKey, resp))
 	res.WriteHeader(http.StatusOK)
 	res.Write(resp)
 }
