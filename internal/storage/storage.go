@@ -34,7 +34,7 @@ type Settings struct {
 	StoreInterval int64
 }
 
-func New(ctx context.Context, cfg *config.ServerConfig) *Storage {
+func New(ctx context.Context, cfg config.ServerConfig) *Storage {
 	settings := Settings{
 		StoragePath:   cfg.StoragePath,
 		StoreInterval: cfg.StoreInterval,
