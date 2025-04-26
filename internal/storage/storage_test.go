@@ -13,12 +13,6 @@ func TestStorage_Save(t *testing.T) {
 	cfg := config.ConfigureServer()
 	store := New(context.Background(), cfg)
 
-	gauge := 146.33
-	delta := int64(10)
-	var batch []model.Metrics
-	batch = append(batch, model.Metrics{ID: "MAlloc", MType: "gauge", Value: &gauge})
-	batch = append(batch, model.Metrics{ID: "Counter3", MType: "counter", Delta: &delta})
-
 	tests := []struct {
 		name          string
 		mtype         string
