@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/derpartizanen/metrics/internal/logger"
-	"github.com/derpartizanen/metrics/internal/model"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pressly/goose/v3"
+
+	"github.com/derpartizanen/metrics/internal/logger"
+	"github.com/derpartizanen/metrics/internal/model"
 )
 
 //go:embed migrations/*.sql

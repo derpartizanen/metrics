@@ -3,10 +3,12 @@ package storage
 import (
 	"context"
 	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/model"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestStorage_Save(t *testing.T) {

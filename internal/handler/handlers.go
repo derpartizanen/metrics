@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/derpartizanen/metrics/internal/hash"
-	"github.com/derpartizanen/metrics/internal/repository/memstorage"
 	"io"
 	"net/http"
 
+	"github.com/derpartizanen/metrics/internal/hash"
 	"github.com/derpartizanen/metrics/internal/model"
+	"github.com/derpartizanen/metrics/internal/repository/memstorage"
 	"github.com/derpartizanen/metrics/internal/storage"
 )
 

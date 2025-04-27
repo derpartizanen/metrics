@@ -10,10 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/model"
 	"github.com/derpartizanen/metrics/internal/storage"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestHandler_UpdateHandler(t *testing.T) {

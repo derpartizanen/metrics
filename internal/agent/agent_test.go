@@ -1,9 +1,11 @@
 package agent
 
 import (
-	"github.com/derpartizanen/metrics/internal/model"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/derpartizanen/metrics/internal/model"
 )
 
 func Test_collectMetrics(t *testing.T) {

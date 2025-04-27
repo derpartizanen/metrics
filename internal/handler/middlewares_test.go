@@ -3,12 +3,14 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/derpartizanen/metrics/internal/compressor"
-	"github.com/derpartizanen/metrics/internal/model"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/derpartizanen/metrics/internal/compressor"
+	"github.com/derpartizanen/metrics/internal/model"
 )
 
 func TestGzipMiddleware(t *testing.T) {

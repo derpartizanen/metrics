@@ -13,13 +13,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shirou/gopsutil/v3/mem"
+	"go.uber.org/zap"
+
 	"github.com/derpartizanen/metrics/internal/compressor"
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/hash"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
-	"github.com/shirou/gopsutil/v3/mem"
-	"go.uber.org/zap"
 )
 
 type Agent struct {

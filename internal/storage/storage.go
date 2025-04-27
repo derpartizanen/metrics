@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/derpartizanen/metrics/internal/config"
-	"github.com/derpartizanen/metrics/internal/interfaces"
-	"github.com/derpartizanen/metrics/internal/repository/memstorage"
-	"github.com/derpartizanen/metrics/internal/repository/postgres"
 	"os"
 	"strconv"
 
+	"go.uber.org/zap"
+
+	"github.com/derpartizanen/metrics/internal/config"
+	"github.com/derpartizanen/metrics/internal/interfaces"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
-	"go.uber.org/zap"
+	"github.com/derpartizanen/metrics/internal/repository/memstorage"
+	"github.com/derpartizanen/metrics/internal/repository/postgres"
 )
 
 var (

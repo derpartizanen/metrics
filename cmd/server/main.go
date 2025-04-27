@@ -5,21 +5,22 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/handler"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/server"
 	"github.com/derpartizanen/metrics/internal/storage"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"go.uber.org/zap"
-	_ "net/http/pprof"
 )
 
 func main() {
