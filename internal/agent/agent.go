@@ -1,3 +1,4 @@
+// Package agent contains methods for collecting and sending metrics to server
 package agent
 
 import (
@@ -39,6 +40,8 @@ func New(client *http.Client, config *config.AgentConfig) *Agent {
 	return &Agent{Client: client, Metrics: []model.Metrics{}, Config: config}
 }
 
+// CollectPsutilMetrics
+// Collect mem.VirtualMemory's Total, Free, UsedPercent values
 func (agent *Agent) CollectPsutilMetrics() {
 	vm, err := mem.VirtualMemory()
 	if err != nil {
@@ -55,6 +58,8 @@ func (agent *Agent) CollectPsutilMetrics() {
 	agent.SetGaugeMetric("CPUutilization1", &CPUutilization)
 }
 
+// CollectMemStatsMetrics
+// Collect memory stats from runtime
 func (agent *Agent) CollectMemStatsMetrics() {
 	var memStats runtime.MemStats
 
@@ -89,6 +94,8 @@ func (agent *Agent) CollectMemStatsMetrics() {
 	agent.SetGaugeMetric("RandomValue", &random)
 }
 
+// SetGaugeMetric
+// Update gauge metric and append to metrics slice
 func (agent *Agent) SetGaugeMetric(metricName string, metricValue *float64) {
 	agent.mu.Lock()
 	defer agent.mu.Unlock()
@@ -96,6 +103,8 @@ func (agent *Agent) SetGaugeMetric(metricName string, metricValue *float64) {
 	agent.Metrics = append(agent.Metrics, model.Metrics{ID: metricName, MType: model.MetricTypeGauge, Value: metricValue})
 }
 
+// SetCounterMetric
+// Update counter metric and append to metrics slice
 func (agent *Agent) SetCounterMetric(metricName string, metricDelta *int64) {
 	agent.mu.Lock()
 	defer agent.mu.Unlock()
@@ -103,10 +112,14 @@ func (agent *Agent) SetCounterMetric(metricName string, metricDelta *int64) {
 	agent.Metrics = append(agent.Metrics, model.Metrics{ID: metricName, MType: model.MetricTypeCounter, Delta: metricDelta})
 }
 
+// AddReportJob
+// Sends collected metrics to jobs channel
 func (agent *Agent) AddReportJob(jobs chan<- []model.Metrics) {
 	jobs <- agent.Metrics
 }
 
+// Worker
+// reads metrics from jobs channel and sends them to server with retries
 func (agent *Agent) Worker(ctx context.Context, id int, jobs <-chan []model.Metrics) {
 	for metrics := range jobs {
 		logger.Log.Debug(fmt.Sprintf("start job on worker %d", id))

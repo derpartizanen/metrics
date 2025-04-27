@@ -30,6 +30,7 @@ type PgStorage struct {
 	ctx context.Context
 }
 
+// New connects to database by passed dsn and returning PgStorage type
 func New(ctx context.Context, dsn string) (*PgStorage, error) {
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
@@ -49,6 +50,7 @@ func New(ctx context.Context, dsn string) (*PgStorage, error) {
 	return &PgStorage{db: db, ctx: ctx}, nil
 }
 
+// UpdateGaugeMetric sets value for gauge metric
 func (s *PgStorage) UpdateGaugeMetric(name string, value float64) error {
 	query := `INSERT INTO metric (id, type, value, delta) VALUES ($1, $2, $3, $4)
               ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value`
@@ -72,6 +74,7 @@ func (s *PgStorage) UpdateGaugeMetric(name string, value float64) error {
 	return err
 }
 
+// UpdateCounterMetric sets value for counter metric
 func (s *PgStorage) UpdateCounterMetric(name string, value int64) error {
 	query := `INSERT INTO metric (id, type, value, delta) VALUES ($1, $2, $3, $4)
               ON CONFLICT (id) DO UPDATE SET delta = metric.delta + EXCLUDED.delta`
@@ -95,6 +98,7 @@ func (s *PgStorage) UpdateCounterMetric(name string, value int64) error {
 	return err
 }
 
+// GetGaugeMetric retrieve value of gauge metric
 func (s *PgStorage) GetGaugeMetric(metricName string) (float64, error) {
 	var value sql.NullFloat64
 	query := `SELECT value FROM metric WHERE type = 'gauge' and id = $1`
@@ -111,6 +115,7 @@ func (s *PgStorage) GetGaugeMetric(metricName string) (float64, error) {
 	return value.Float64, nil
 }
 
+// GetCounterMetric retrieve value of counter metric
 func (s *PgStorage) GetCounterMetric(metricName string) (int64, error) {
 	var delta sql.NullInt64
 	query := `SELECT delta FROM metric WHERE type = 'counter' and id = $1`
@@ -127,6 +132,7 @@ func (s *PgStorage) GetCounterMetric(metricName string) (int64, error) {
 	return delta.Int64, nil
 }
 
+// GetAllMetrics retrieve values of both counter and gauge metric types
 func (s *PgStorage) GetAllMetrics() ([]model.Metrics, error) {
 	var metrics []model.Metrics
 	query := `SELECT id, type, value, delta FROM metric`
@@ -154,6 +160,7 @@ func (s *PgStorage) GetAllMetrics() ([]model.Metrics, error) {
 	return metrics, nil
 }
 
+// SetAllMetrics set values for both counter and gauge metric types
 func (s *PgStorage) SetAllMetrics(metrics []model.Metrics) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -182,6 +189,7 @@ func (s *PgStorage) SetAllMetrics(metrics []model.Metrics) error {
 	return tx.Commit()
 }
 
+// Ping check connection with database
 func (s *PgStorage) Ping() error {
 	return s.db.Ping()
 }

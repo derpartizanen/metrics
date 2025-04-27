@@ -1,3 +1,4 @@
+// Package handler is a transport layer for handling requests to metrics server
 package handler
 
 import (
@@ -28,6 +29,8 @@ func NewHandler(storage *storage.Storage, hashKey string) *Handler {
 	}
 }
 
+// UpdateHandler
+// Update metric by metricName, metricType and metricName in URL params
 func (h *Handler) UpdateHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := req.PathValue("metricType")
 	metricName := req.PathValue("metricName")
@@ -42,6 +45,8 @@ func (h *Handler) UpdateHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusOK)
 }
 
+// GetHandler
+// Gets metric value by metricType and metricName in URL params
 func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	metricType := req.PathValue("metricType")
 	metricName := req.PathValue("metricName")
@@ -74,6 +79,8 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	io.WriteString(res, result)
 }
 
+// GetAllHandler
+// Returns all metrics with their values in text/html format
 func (h *Handler) GetAllHandler(res http.ResponseWriter, req *http.Request) {
 	var result string
 	metrics, _ := h.storage.GetAllMetrics()
@@ -93,6 +100,8 @@ func (h *Handler) GetAllHandler(res http.ResponseWriter, req *http.Request) {
 	io.WriteString(res, result)
 }
 
+// GetJSONHandler
+// Reads metric name and type in json format from request body and returns metric with its value
 func (h *Handler) GetJSONHandler(res http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	defer req.Body.Close()
@@ -127,6 +136,8 @@ func (h *Handler) GetJSONHandler(res http.ResponseWriter, req *http.Request) {
 	res.Write(resp)
 }
 
+// UpdateJSONHandler
+// Accepts metric data in json format and updates the metric, return updated value of the metric
 func (h *Handler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	defer req.Body.Close()
@@ -161,6 +172,8 @@ func (h *Handler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) 
 	res.Write(resp)
 }
 
+// BatchUpdateJSONHandler
+// Accepts multiple metrics in json format and updates them
 func (h *Handler) BatchUpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	defer req.Body.Close()
@@ -181,6 +194,8 @@ func (h *Handler) BatchUpdateJSONHandler(res http.ResponseWriter, req *http.Requ
 	res.WriteHeader(http.StatusOK)
 }
 
+// PingHandler
+// Can be used to check if service connected to database
 func (h *Handler) PingHandler(res http.ResponseWriter, req *http.Request) {
 	err := h.storage.Ping()
 	if err != nil {

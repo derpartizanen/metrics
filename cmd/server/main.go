@@ -18,6 +18,7 @@ import (
 
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/handler"
+	middlewares "github.com/derpartizanen/metrics/internal/handler/middlewares"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/server"
 	"github.com/derpartizanen/metrics/internal/storage"
@@ -54,9 +55,9 @@ func main() {
 
 	h := handler.NewHandler(store, cfg.Key)
 	r := chi.NewRouter()
-	r.Use(logger.RequestLogger)
-	r.Use(handler.GzipMiddleware)
-	hm := handler.NewHashMiddleware(cfg.Key)
+	r.Use(middlewares.RequestLogger)
+	r.Use(middlewares.GzipMiddleware)
+	hm := middlewares.NewHashMiddleware(cfg.Key)
 	r.Use(hm.VerifyHash)
 	r.Mount("/debug", middleware.Profiler())
 	r.Get("/", h.GetAllHandler)

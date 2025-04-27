@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/derpartizanen/metrics/internal/hash"
 )
 
+// GzipMiddleware
+// compress response data and decompress incoming data
 func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ow := w
@@ -92,35 +91,4 @@ func (c *compressReader) Close() error {
 		return err
 	}
 	return c.zr.Close()
-}
-
-func (hm *HashMiddleware) VerifyHash(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get(HashHeader) != "" {
-			payload, err := io.ReadAll(r.Body)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			r.Body = io.NopCloser(bytes.NewBuffer(payload))
-
-			hashStr := hash.Calc(hm.HashKey, payload)
-			if hashStr != r.Header.Get(HashHeader) {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-		}
-
-		h.ServeHTTP(w, r)
-	})
-}
-
-type HashMiddleware struct {
-	HashKey string
-}
-
-func NewHashMiddleware(hash string) *HashMiddleware {
-	return &HashMiddleware{
-		HashKey: hash,
-	}
 }

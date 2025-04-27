@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -91,7 +90,6 @@ func TestStorage_SetAllMetric(t *testing.T) {
 			store.SetAllMetrics(tt.metrics)
 
 			res, _ := store.GetAllMetrics()
-			fmt.Println(res)
 			assert.Equal(t, tt.metrics, res)
 		})
 	}
