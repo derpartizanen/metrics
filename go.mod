@@ -1,6 +1,6 @@
 module github.com/derpartizanen/metrics
 
-go 1.22.10
+go 1.23.8
 
 require (
 	github.com/avast/retry-go v3.0.0+incompatible

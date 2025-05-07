@@ -16,8 +16,8 @@ type ServerConfig struct {
 	Key           string `env:"KEY"`
 }
 
-func ConfigureServer() *ServerConfig {
-	config := &ServerConfig{}
+func ConfigureServer() ServerConfig {
+	config := ServerConfig{}
 	env.Parse(config)
 
 	flagConfig := parseServerFlags()
@@ -46,8 +46,8 @@ func ConfigureServer() *ServerConfig {
 	return config
 }
 
-func parseServerFlags() *ServerConfig {
-	config := &ServerConfig{}
+func parseServerFlags() ServerConfig {
+	config := ServerConfig{}
 	flag.StringVar(&config.Host, "a", "localhost:8080", "server host")
 	flag.StringVar(&config.StoragePath, "f", "/tmp/metrics-storage.json", "path to file to store metrics")
 	flag.Int64Var(&config.StoreInterval, "i", 300, "interval of storing metrics")

@@ -5,6 +5,8 @@ import (
 	"compress/gzip"
 )
 
+// Compress
+// accept data and gzip it
 func Compress(data []byte) ([]byte, error) {
 	var b bytes.Buffer
 	w, err := gzip.NewWriterLevel(&b, gzip.BestSpeed)

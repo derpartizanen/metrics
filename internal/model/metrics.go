@@ -5,6 +5,7 @@ const (
 	MetricTypeGauge   = "gauge"
 )
 
+// Metrics schema for accepting request and response
 type Metrics struct {
 	ID    string   `json:"id"`
 	MType string   `json:"type"`

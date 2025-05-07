@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/derpartizanen/metrics/internal/config"
-	"github.com/derpartizanen/metrics/internal/interfaces"
-	"github.com/derpartizanen/metrics/internal/repository/memstorage"
-	"github.com/derpartizanen/metrics/internal/repository/postgres"
 	"os"
 	"strconv"
 
+	"go.uber.org/zap"
+
+	"github.com/derpartizanen/metrics/internal/config"
+	"github.com/derpartizanen/metrics/internal/interfaces"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
-	"go.uber.org/zap"
+	"github.com/derpartizanen/metrics/internal/repository/memstorage"
+	"github.com/derpartizanen/metrics/internal/repository/postgres"
 )
 
 var (
@@ -34,7 +35,9 @@ type Settings struct {
 	StoreInterval int64
 }
 
-func New(ctx context.Context, cfg *config.ServerConfig) *Storage {
+// New
+// returns new storage with repository depending on config settings
+func New(ctx context.Context, cfg config.ServerConfig) *Storage {
 	settings := Settings{
 		StoragePath:   cfg.StoragePath,
 		StoreInterval: cfg.StoreInterval,
@@ -61,6 +64,8 @@ func New(ctx context.Context, cfg *config.ServerConfig) *Storage {
 	return storage
 }
 
+// Restore
+// retrieve storage data from file
 func (s *Storage) Restore() error {
 	logger.Log.Info("Restoring metrics from backup file")
 
@@ -79,6 +84,8 @@ func (s *Storage) Restore() error {
 	return s.SetAllMetrics(metrics)
 }
 
+// Backup
+// save storage data to file
 func (s *Storage) Backup() error {
 	logger.Log.Debug("Backing up metrics to file")
 
@@ -104,6 +111,8 @@ func (s *Storage) Backup() error {
 	return writer.Flush()
 }
 
+// Save
+// set metric into storage
 func (s *Storage) Save(metricType string, metricName string, value string) error {
 	if metricType == model.MetricTypeCounter {
 		intValue, err := strconv.ParseInt(value, 10, 64)
@@ -126,6 +135,8 @@ func (s *Storage) Save(metricType string, metricName string, value string) error
 	return ErrInvalidMetricType
 }
 
+// SaveMetric
+// set metric into storage
 func (s *Storage) SaveMetric(metric model.Metrics) error {
 	var err error
 
@@ -155,6 +166,8 @@ func (s *Storage) SaveMetric(metric model.Metrics) error {
 	return nil
 }
 
+// Get
+// retrieve metric value from storage
 func (s *Storage) Get(metricType string, metricName string) (interface{}, error) {
 	if metricType == model.MetricTypeGauge {
 		value, err := s.repository.GetGaugeMetric(metricName)
@@ -171,6 +184,8 @@ func (s *Storage) Get(metricType string, metricName string) (interface{}, error)
 	return nil, ErrInvalidMetricType
 }
 
+// GetMetric
+// retrieve metric from storage
 func (s *Storage) GetMetric(metric *model.Metrics) error {
 	if metric.MType == model.MetricTypeGauge {
 		value, err := s.repository.GetGaugeMetric(metric.ID)
@@ -191,6 +206,8 @@ func (s *Storage) GetMetric(metric *model.Metrics) error {
 	return nil
 }
 
+// GetAllMetrics
+// retrieve all metrics from storage
 func (s *Storage) GetAllMetrics() ([]model.Metrics, error) {
 	metrics, err := s.repository.GetAllMetrics()
 	if err != nil {
@@ -200,10 +217,13 @@ func (s *Storage) GetAllMetrics() ([]model.Metrics, error) {
 	return metrics, nil
 }
 
+// SetAllMetrics
+// set slice of metrics to storage
 func (s *Storage) SetAllMetrics(metrics []model.Metrics) error {
 	return s.repository.SetAllMetrics(metrics)
 }
 
+// Ping check connection with storage
 func (s *Storage) Ping() error {
 	return s.repository.Ping()
 }
