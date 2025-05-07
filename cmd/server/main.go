@@ -45,7 +45,7 @@ func main() {
 					return
 				case <-ticker.C:
 					logger.Log.Debug("Running periodic backup")
-					if err := store.Backup(); err != nil {
+					if backupErr := store.Backup(); backupErr != nil {
 						logger.Log.Error("Periodic backup failed", zap.Error(err))
 					}
 				}
@@ -86,14 +86,14 @@ func main() {
 		}()
 
 		logger.Log.Info("Shutting down server...")
-		err := srv.Shutdown(shutdownCtx)
-		if err != nil {
+		shutdownErr := srv.Shutdown(shutdownCtx)
+		if shutdownErr != nil {
 			logger.Log.Fatal("Server shutdown failed", zap.Error(err))
 		}
 		logger.Log.Info("Server stopped gracefully")
 
 		if cfg.DatabaseDSN == "" {
-			if err := store.Backup(); err != nil {
+			if backupErr := store.Backup(); backupErr != nil {
 				logger.Log.Error("Metrics backup failed", zap.Error(err))
 			}
 		}
