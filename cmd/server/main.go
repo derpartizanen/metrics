@@ -24,12 +24,19 @@ import (
 	"github.com/derpartizanen/metrics/internal/storage"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
 	cfg := config.ConfigureServer()
 	err := logger.Initialize(cfg.Loglevel)
 	if err != nil {
 		log.Fatal(err)
 	}
+	logger.Log.Info("Server", zap.String("version", buildVersion), zap.String("build_date", buildDate), zap.String("build_commit", buildCommit))
 
 	ctx := context.Background()
 	store := storage.New(ctx, cfg)
