@@ -24,12 +24,19 @@ import (
 	"github.com/derpartizanen/metrics/internal/storage"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
 	cfg := config.ConfigureServer()
 	err := logger.Initialize(cfg.Loglevel)
 	if err != nil {
 		log.Fatal(err)
 	}
+	logger.Log.Info("Server", zap.String("version", buildVersion), zap.String("build_date", buildDate), zap.String("build_commit", buildCommit))
 
 	ctx := context.Background()
 	store := storage.New(ctx, cfg)
@@ -45,7 +52,7 @@ func main() {
 					return
 				case <-ticker.C:
 					logger.Log.Debug("Running periodic backup")
-					if err := store.Backup(); err != nil {
+					if backupErr := store.Backup(); backupErr != nil {
 						logger.Log.Error("Periodic backup failed", zap.Error(err))
 					}
 				}
@@ -86,14 +93,14 @@ func main() {
 		}()
 
 		logger.Log.Info("Shutting down server...")
-		err := srv.Shutdown(shutdownCtx)
-		if err != nil {
+		shutdownErr := srv.Shutdown(shutdownCtx)
+		if shutdownErr != nil {
 			logger.Log.Fatal("Server shutdown failed", zap.Error(err))
 		}
 		logger.Log.Info("Server stopped gracefully")
 
 		if cfg.DatabaseDSN == "" {
-			if err := store.Backup(); err != nil {
+			if backupErr := store.Backup(); backupErr != nil {
 				logger.Log.Error("Metrics backup failed", zap.Error(err))
 			}
 		}

@@ -8,10 +8,18 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/derpartizanen/metrics/internal/agent"
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
+)
+
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 func main() {
@@ -19,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	logger.Log.Info("Starting agent")
+	logger.Log.Info("Agent", zap.String("version", buildVersion), zap.String("build_date", buildDate), zap.String("build_commit", buildCommit))
 
 	cfg := config.ConfigureAgent()
 	cfg.LogVars()
