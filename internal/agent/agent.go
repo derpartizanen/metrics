@@ -19,6 +19,7 @@ import (
 
 	"github.com/derpartizanen/metrics/internal/compressor"
 	"github.com/derpartizanen/metrics/internal/config"
+	"github.com/derpartizanen/metrics/internal/crypto"
 	"github.com/derpartizanen/metrics/internal/hash"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
@@ -26,6 +27,7 @@ import (
 
 type Agent struct {
 	Config  *config.AgentConfig
+	PubKey  []byte
 	Client  *http.Client
 	Metrics []model.Metrics
 	mu      sync.Mutex
@@ -37,7 +39,15 @@ var (
 )
 
 func New(client *http.Client, config *config.AgentConfig) *Agent {
-	return &Agent{Client: client, Metrics: []model.Metrics{}, Config: config}
+	var pubKey []byte
+	var err error
+	if config.CryptoKey != "" {
+		pubKey, err = crypto.ReadKeyFile(config.CryptoKey)
+		if err != nil {
+			logger.Log.Fatal("read public key", zap.String("error", err.Error()))
+		}
+	}
+	return &Agent{Client: client, Metrics: []model.Metrics{}, Config: config, PubKey: pubKey}
 }
 
 // CollectPsutilMetrics
@@ -171,8 +181,16 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 	if err != nil {
 		return errors.New("can't compress data")
 	}
+	b := gzipData
+	if agent.Config.CryptoKey != "" {
+		encodedBytes, err := crypto.Encrypt(gzipData, agent.PubKey)
+		if err != nil {
+			return fmt.Errorf("failed to encode request body: %w", err)
+		}
+		b = encodedBytes
+	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reportURL, bytes.NewBuffer(gzipData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reportURL, bytes.NewBuffer(b))
 	if err != nil {
 		return errors.New("new request error")
 	}

@@ -14,6 +14,7 @@ type AgentConfig struct {
 	HashKey          string
 	RateLimit        int
 	ReportRetryCount int
+	CryptoKey        string
 }
 
 type EnvParams struct {
@@ -23,6 +24,7 @@ type EnvParams struct {
 	PollInterval     int    `env:"POLL_INTERVAL"`
 	KEY              string `env:"KEY"`
 	RateLimit        int    `env:"RATE_LIMIT"`
+	CryptoKey        string `env:"CRYPTO_KEY"`
 }
 
 func ConfigureAgent() *AgentConfig {
@@ -34,6 +36,7 @@ func ConfigureAgent() *AgentConfig {
 	var pollInterval int
 	var hashKey string
 	var rateLimit int
+	var cryptoKey string
 
 	flag.StringVar(&reportEndpoint, "a", "localhost:8080", "server host")
 	flag.IntVar(&reportInterval, "r", 10, "report interval, seconds")
@@ -41,6 +44,7 @@ func ConfigureAgent() *AgentConfig {
 	flag.IntVar(&pollInterval, "p", 2, "poll interval, seconds")
 	flag.StringVar(&hashKey, "k", "", "hash key")
 	flag.IntVar(&rateLimit, "l", 1, "rate limit")
+	flag.StringVar(&cryptoKey, "crypto-key", "", "crypto key")
 	flag.Parse()
 
 	err := env.Parse(&envParams)
@@ -65,6 +69,9 @@ func ConfigureAgent() *AgentConfig {
 	if envParams.RateLimit != 0 {
 		rateLimit = envParams.RateLimit
 	}
+	if envParams.CryptoKey != "" {
+		cryptoKey = envParams.CryptoKey
+	}
 	cfg := &AgentConfig{
 		ReportEndpoint:   reportEndpoint,
 		ReportInterval:   reportInterval,
@@ -72,6 +79,7 @@ func ConfigureAgent() *AgentConfig {
 		PollInterval:     pollInterval,
 		HashKey:          hashKey,
 		RateLimit:        rateLimit,
+		CryptoKey:        cryptoKey,
 	}
 
 	return cfg

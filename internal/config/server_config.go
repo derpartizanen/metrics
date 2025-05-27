@@ -14,6 +14,7 @@ type ServerConfig struct {
 	Loglevel      string `env:"LOG_LEVEL"`
 	DatabaseDSN   string `env:"DATABASE_DSN"`
 	Key           string `env:"KEY"`
+	CryptoKey     string `env:"CRYPTO_KEY"`
 }
 
 func ConfigureServer() ServerConfig {
@@ -42,6 +43,9 @@ func ConfigureServer() ServerConfig {
 	if config.Key == "" {
 		config.Key = flagConfig.Key
 	}
+	if config.CryptoKey == "" {
+		config.CryptoKey = flagConfig.CryptoKey
+	}
 
 	return config
 }
@@ -54,6 +58,7 @@ func parseServerFlags() ServerConfig {
 	flag.BoolVar(&config.Restore, "r", true, "load metrics from file")
 	flag.StringVar(&config.DatabaseDSN, "d", "", "database DSN")
 	flag.StringVar(&config.Key, "k", "", "hash key")
+	flag.StringVar(&config.CryptoKey, "crypto-key", "", "crypto key")
 	flag.StringVar(&config.Loglevel, "l", "DEBUG", "log level")
 	flag.Parse()
 
