@@ -170,7 +170,7 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 		return nil
 	}
 
-	reportURL := fmt.Sprintf("http://%s/updates/", agent.Config.ReportEndpoint)
+	reportURL := fmt.Sprintf("http://%s/updates/", agent.Config.Address)
 
 	jsonStr, err := json.Marshal(metrics)
 	if err != nil {

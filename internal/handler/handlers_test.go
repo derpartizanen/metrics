@@ -20,7 +20,7 @@ import (
 func TestHandler_UpdateHandler(t *testing.T) {
 	var baseURL = "http://localhost:8080"
 	cfg := config.ConfigureServer()
-	store := storage.New(context.Background(), cfg)
+	store := storage.New(context.Background(), *cfg)
 	h := NewHandler(store, cfg.Key)
 
 	tests := []struct {

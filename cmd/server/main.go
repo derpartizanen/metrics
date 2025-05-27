@@ -32,6 +32,7 @@ var (
 
 func main() {
 	cfg := config.ConfigureServer()
+	cfg.LogVars()
 	err := logger.Initialize(cfg.Loglevel)
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +40,7 @@ func main() {
 	logger.Log.Info("Server", zap.String("version", buildVersion), zap.String("build_date", buildDate), zap.String("build_commit", buildCommit))
 
 	ctx := context.Background()
-	store := storage.New(ctx, cfg)
+	store := storage.New(ctx, *cfg)
 
 	if cfg.DatabaseDSN == "" && cfg.StoreInterval > 0 {
 		logger.Log.Debug(fmt.Sprintf("Activate periodic backups with interval %d seconds", cfg.StoreInterval))
