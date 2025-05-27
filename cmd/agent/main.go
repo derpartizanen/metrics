@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -38,14 +39,13 @@ func main() {
 
 	metricAgent := agent.New(client, cfg)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGKILL, syscall.SIGTERM, syscall.SIGINT)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer cancel()
 
 	run(ctx, metricAgent)
 }
 
 func run(ctx context.Context, agent *agent.Agent) {
-
 	pollTicker := time.NewTicker(time.Duration(agent.Config.PollInterval) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(agent.Config.ReportInterval) * time.Second)
 
@@ -53,21 +53,27 @@ func run(ctx context.Context, agent *agent.Agent) {
 	defer reportTicker.Stop()
 
 	jobs := make(chan []model.Metrics, agent.Config.RateLimit)
-	defer close(jobs)
 
-	for i := 0; i < agent.Config.RateLimit; i++ {
-		go agent.Worker(ctx, i+1, jobs)
+	var wg sync.WaitGroup
+	for i := 0; i <= agent.Config.RateLimit-1; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			agent.Worker(ctx, workerID, jobs)
+		}(i + 1)
 	}
 
 	for {
 		select {
 		case <-pollTicker.C:
-			go agent.CollectMemStatsMetrics()
-			go agent.CollectPsutilMetrics()
+			agent.CollectMemStatsMetrics()
+			agent.CollectPsutilMetrics()
 		case <-reportTicker.C:
-			go agent.AddReportJob(jobs)
+			agent.AddReportJob(ctx, jobs)
 		case <-ctx.Done():
 			logger.Log.Info("shutting down agent...")
+			close(jobs)
+			wg.Wait()
 			return
 		}
 	}

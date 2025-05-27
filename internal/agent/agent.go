@@ -124,26 +124,44 @@ func (agent *Agent) SetCounterMetric(metricName string, metricDelta *int64) {
 
 // AddReportJob
 // Sends collected metrics to jobs channel
-func (agent *Agent) AddReportJob(jobs chan<- []model.Metrics) {
-	jobs <- agent.Metrics
+func (agent *Agent) AddReportJob(ctx context.Context, jobs chan<- []model.Metrics) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		jobs <- agent.Metrics
+	}
 }
 
 // Worker
 // reads metrics from jobs channel and sends them to server with retries
 func (agent *Agent) Worker(ctx context.Context, id int, jobs <-chan []model.Metrics) {
-	for metrics := range jobs {
-		logger.Log.Debug(fmt.Sprintf("start job on worker %d", id))
-
-		err := agent.reportMetricsWithRetry(ctx, metrics)
-		if err != nil {
-			logger.Log.Error("send request error", zap.Error(err))
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Log.Info("worker done", zap.Int("id", id))
+			return
+		case metrics, ok := <-jobs:
+			if !ok {
+				logger.Log.Info("worker done", zap.Int("id", id))
+				return
+			}
+			logger.Log.Info("worker", zap.Int("started id", id))
+			err := agent.reportMetricsWithRetry(ctx, metrics)
+			if err != nil {
+				logger.Log.Error("send request error", zap.Error(err))
+			}
 		}
-
-		logger.Log.Debug(fmt.Sprintf("finish job on worker %d", id))
 	}
 }
 
 func (agent *Agent) reportMetricsWithRetry(ctx context.Context, metrics []model.Metrics) error {
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
+	}
+
 	var err error
 	for i := 1; i <= agent.Config.ReportRetryCount; i++ {
 		err = agent.reportMetrics(ctx, metrics)
