@@ -12,7 +12,7 @@ import (
 
 func TestStorage_Save(t *testing.T) {
 	cfg := config.ConfigureServer()
-	store := New(context.Background(), cfg)
+	store := New(context.Background(), *cfg)
 
 	tests := []struct {
 		name          string

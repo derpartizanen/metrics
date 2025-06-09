@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/handler"
-	middlewares "github.com/derpartizanen/metrics/internal/handler/middlewares"
+	"github.com/derpartizanen/metrics/internal/handler/middlewares"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/server"
 	"github.com/derpartizanen/metrics/internal/storage"
@@ -32,6 +32,7 @@ var (
 
 func main() {
 	cfg := config.ConfigureServer()
+	cfg.LogVars()
 	err := logger.Initialize(cfg.Loglevel)
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +40,7 @@ func main() {
 	logger.Log.Info("Server", zap.String("version", buildVersion), zap.String("build_date", buildDate), zap.String("build_commit", buildCommit))
 
 	ctx := context.Background()
-	store := storage.New(ctx, cfg)
+	store := storage.New(ctx, *cfg)
 
 	if cfg.DatabaseDSN == "" && cfg.StoreInterval > 0 {
 		logger.Log.Debug(fmt.Sprintf("Activate periodic backups with interval %d seconds", cfg.StoreInterval))
@@ -53,7 +54,7 @@ func main() {
 				case <-ticker.C:
 					logger.Log.Debug("Running periodic backup")
 					if backupErr := store.Backup(); backupErr != nil {
-						logger.Log.Error("Periodic backup failed", zap.Error(err))
+						logger.Log.Error("Periodic backup failed", zap.Error(backupErr))
 					}
 				}
 			}
@@ -62,11 +63,18 @@ func main() {
 
 	h := handler.NewHandler(store, cfg.Key)
 	r := chi.NewRouter()
+
+	if len(cfg.CryptoKey) > 0 {
+		cm := middlewares.NewCryptoMiddleware(cfg.CryptoKey)
+		r.Use(cm.Decrypt())
+	}
+
 	r.Use(middlewares.RequestLogger)
 	r.Use(middlewares.GzipMiddleware)
 	hm := middlewares.NewHashMiddleware(cfg.Key)
 	r.Use(hm.VerifyHash)
-	r.Mount("/debug", middleware.Profiler())
+
+	r.Mount("/debug", chimiddleware.Profiler())
 	r.Get("/", h.GetAllHandler)
 	r.Get("/value/{metricType}/{metricName}", h.GetHandler)
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.UpdateHandler)
@@ -95,7 +103,7 @@ func main() {
 		logger.Log.Info("Shutting down server...")
 		shutdownErr := srv.Shutdown(shutdownCtx)
 		if shutdownErr != nil {
-			logger.Log.Fatal("Server shutdown failed", zap.Error(err))
+			logger.Log.Fatal("Server shutdown failed", zap.Error(shutdownErr))
 		}
 		logger.Log.Info("Server stopped gracefully")
 

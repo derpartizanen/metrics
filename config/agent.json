@@ -1,0 +1,6 @@
+{
+  "address": "localhost:8081",
+  "report_interval": 5,
+  "poll_interval": 3,
+  "crypto_key": "/tmp/crt.pem"
+}
