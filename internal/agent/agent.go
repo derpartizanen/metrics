@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -213,6 +214,11 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 		return errors.New("new request error")
 	}
 
+	ip, err := agent.GetIP()
+	if err != nil {
+		logger.Log.Warn("can't get ip", zap.String("error", err.Error()))
+	}
+	req.Header.Add("X-REAL-IP", ip.String())
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Content-Encoding", "gzip")
 
@@ -230,4 +236,17 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 	res.Body.Close()
 
 	return nil
+}
+
+func (agent *Agent) GetIP() (net.IP, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, fmt.Errorf("failed to identify IP addresses: %w", err)
+	}
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+			return ipNet.IP.To4(), nil
+		}
+	}
+	return nil, errors.New("ip address is not found")
 }

@@ -69,6 +69,11 @@ func main() {
 		r.Use(cm.Decrypt())
 	}
 
+	if cfg.TrustedSubnet != "" {
+		tm := middlewares.NewTrustedSubnetMiddleware(cfg.TrustedSubnet)
+		r.Use(tm.VerifySubnet)
+	}
+
 	r.Use(middlewares.RequestLogger)
 	r.Use(middlewares.GzipMiddleware)
 	hm := middlewares.NewHashMiddleware(cfg.Key)
