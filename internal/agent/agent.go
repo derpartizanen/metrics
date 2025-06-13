@@ -28,15 +28,15 @@ import (
 )
 
 const (
-	AgentTypeHttp = "http"
-	AgentTypeGrpc = "grpc"
+	AgentTypeHTTP = "http"
+	AgentTypeGRPC = "grpc"
 )
 
 type Agent struct {
 	Config     *config.AgentConfig
 	PubKey     []byte
-	HttpClient *http.Client
-	GrpcClient proto.MetricCollectorClient
+	HTTPClient *http.Client
+	GRPCClient proto.MetricCollectorClient
 	Metrics    []model.Metrics
 	mu         sync.Mutex
 }
@@ -55,7 +55,7 @@ func New(httpClient *http.Client, grpcClient proto.MetricCollectorClient, config
 			logger.Log.Fatal("read public key", zap.String("error", err.Error()))
 		}
 	}
-	return &Agent{HttpClient: httpClient, GrpcClient: grpcClient, Metrics: []model.Metrics{}, Config: config, PubKey: pubKey}
+	return &Agent{HTTPClient: httpClient, GRPCClient: grpcClient, Metrics: []model.Metrics{}, Config: config, PubKey: pubKey}
 }
 
 // CollectPsutilMetrics
@@ -198,9 +198,9 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 
 	var err error
 	switch agent.Config.AgentType {
-	case AgentTypeHttp:
+	case AgentTypeHTTP:
 		err = agent.httpUpdate(ctx, metrics)
-	case AgentTypeGrpc:
+	case AgentTypeGRPC:
 		err = agent.grpcUpdate(ctx, metrics)
 	default:
 		logger.Log.Fatal("unsupported agent type")
@@ -226,7 +226,7 @@ func (agent *Agent) grpcUpdate(ctx context.Context, metrics []model.Metrics) err
 		}
 		updatesRequest.Metrics = append(updatesRequest.Metrics, reqMetric)
 	}
-	_, err := agent.GrpcClient.Updates(ctx, updatesRequest)
+	_, err := agent.GRPCClient.Updates(ctx, updatesRequest)
 	return err
 }
 
@@ -269,7 +269,7 @@ func (agent *Agent) httpUpdate(ctx context.Context, metrics []model.Metrics) err
 		req.Header.Add("HashSHA256", requestHash)
 	}
 
-	res, err := agent.HttpClient.Do(req)
+	res, err := agent.HTTPClient.Do(req)
 	if err != nil {
 		return ErrDoRequest
 	}
