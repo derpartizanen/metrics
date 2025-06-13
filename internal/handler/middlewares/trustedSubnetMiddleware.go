@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/derpartizanen/metrics/internal/logger"
+	"github.com/derpartizanen/metrics/internal/network"
 )
 
 func (m *TrustedSubnetMiddleware) VerifySubnet(next http.Handler) http.Handler {
@@ -40,20 +41,8 @@ type TrustedSubnetMiddleware struct {
 }
 
 func NewTrustedSubnetMiddleware(subnetStr string) *TrustedSubnetMiddleware {
-	subnet := getSubnetFromString(subnetStr)
+	subnet := network.GetSubnetFromString(subnetStr)
 	return &TrustedSubnetMiddleware{
 		Subnet: subnet,
 	}
-}
-
-func getSubnetFromString(subnet string) *net.IPNet {
-	if subnet == "" {
-		return nil
-	}
-	_, s, err := net.ParseCIDR(subnet)
-	if err != nil {
-		return nil
-	}
-
-	return s
 }

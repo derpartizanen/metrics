@@ -18,13 +18,13 @@ import (
 const HashHeader = "HashSHA256"
 
 type Handler struct {
-	storage *storage.Storage
+	service *storage.Storage
 	hashKey string
 }
 
-func NewHandler(storage *storage.Storage, hashKey string) *Handler {
+func NewHandler(service *storage.Storage, hashKey string) *Handler {
 	return &Handler{
-		storage: storage,
+		service: service,
 		hashKey: hashKey,
 	}
 }
@@ -36,7 +36,7 @@ func (h *Handler) UpdateHandler(res http.ResponseWriter, req *http.Request) {
 	metricName := req.PathValue("metricName")
 	metricValue := req.PathValue("metricValue")
 
-	err := h.storage.Save(metricType, metricName, metricValue)
+	err := h.service.Save(metricType, metricName, metricValue)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
@@ -53,7 +53,7 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 
 	var result string
 
-	value, err := h.storage.Get(metricType, metricName)
+	value, err := h.service.Get(metricType, metricName)
 	if err != nil {
 		if errors.Is(err, storage.ErrInvalidMetricType) {
 			http.Error(res, err.Error(), http.StatusBadRequest)
@@ -83,7 +83,7 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 // Returns all metrics with their values in text/html format
 func (h *Handler) GetAllHandler(res http.ResponseWriter, req *http.Request) {
 	var result string
-	metrics, _ := h.storage.GetAllMetrics()
+	metrics, _ := h.service.GetAllMetrics()
 
 	for _, metric := range metrics {
 		if metric.MType == model.MetricTypeCounter {
@@ -113,7 +113,7 @@ func (h *Handler) GetJSONHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = h.storage.GetMetric(&metric)
+	err = h.service.GetMetric(&metric)
 
 	if err != nil {
 		if errors.Is(err, storage.ErrInvalidMetricType) {
@@ -149,13 +149,13 @@ func (h *Handler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	err = h.storage.SaveMetric(metric)
+	err = h.service.SaveMetric(metric)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	err = h.storage.GetMetric(&metric)
+	err = h.service.GetMetric(&metric)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
@@ -185,7 +185,7 @@ func (h *Handler) BatchUpdateJSONHandler(res http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	err = h.storage.SetAllMetrics(metrics)
+	err = h.service.SetAllMetrics(metrics)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
@@ -197,7 +197,7 @@ func (h *Handler) BatchUpdateJSONHandler(res http.ResponseWriter, req *http.Requ
 // PingHandler
 // Can be used to check if service connected to database
 func (h *Handler) PingHandler(res http.ResponseWriter, req *http.Request) {
-	err := h.storage.Ping()
+	err := h.service.Ping()
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 		return

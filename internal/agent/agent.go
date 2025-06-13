@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"net"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -24,14 +23,22 @@ import (
 	"github.com/derpartizanen/metrics/internal/hash"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
+	"github.com/derpartizanen/metrics/internal/network"
+	"github.com/derpartizanen/metrics/proto"
+)
+
+const (
+	AgentTypeHttp = "http"
+	AgentTypeGrpc = "grpc"
 )
 
 type Agent struct {
-	Config  *config.AgentConfig
-	PubKey  []byte
-	Client  *http.Client
-	Metrics []model.Metrics
-	mu      sync.Mutex
+	Config     *config.AgentConfig
+	PubKey     []byte
+	HttpClient *http.Client
+	GrpcClient proto.MetricCollectorClient
+	Metrics    []model.Metrics
+	mu         sync.Mutex
 }
 
 var (
@@ -39,7 +46,7 @@ var (
 	ErrDoRequest = errors.New("execution request error")
 )
 
-func New(client *http.Client, config *config.AgentConfig) *Agent {
+func New(httpClient *http.Client, grpcClient proto.MetricCollectorClient, config *config.AgentConfig) *Agent {
 	var pubKey []byte
 	var err error
 	if config.CryptoKey != "" {
@@ -48,7 +55,7 @@ func New(client *http.Client, config *config.AgentConfig) *Agent {
 			logger.Log.Fatal("read public key", zap.String("error", err.Error()))
 		}
 	}
-	return &Agent{Client: client, Metrics: []model.Metrics{}, Config: config, PubKey: pubKey}
+	return &Agent{HttpClient: httpClient, GrpcClient: grpcClient, Metrics: []model.Metrics{}, Config: config, PubKey: pubKey}
 }
 
 // CollectPsutilMetrics
@@ -189,6 +196,41 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 		return nil
 	}
 
+	var err error
+	switch agent.Config.AgentType {
+	case AgentTypeHttp:
+		err = agent.httpUpdate(ctx, metrics)
+	case AgentTypeGrpc:
+		err = agent.grpcUpdate(ctx, metrics)
+	default:
+		logger.Log.Fatal("unsupported agent type")
+	}
+
+	return err
+}
+
+func (agent *Agent) grpcUpdate(ctx context.Context, metrics []model.Metrics) error {
+	updatesRequest := &proto.UpdatesRequest{
+		Metrics: make([]*proto.Metric, 0, len(metrics)),
+	}
+	for _, m := range metrics {
+		reqMetric := &proto.Metric{
+			Id:   m.ID,
+			Type: m.MType,
+		}
+		if m.Delta != nil {
+			reqMetric.Delta = *m.Delta
+		}
+		if m.Value != nil {
+			reqMetric.Value = *m.Value
+		}
+		updatesRequest.Metrics = append(updatesRequest.Metrics, reqMetric)
+	}
+	_, err := agent.GrpcClient.Updates(ctx, updatesRequest)
+	return err
+}
+
+func (agent *Agent) httpUpdate(ctx context.Context, metrics []model.Metrics) error {
 	reportURL := fmt.Sprintf("http://%s/updates/", agent.Config.Address)
 
 	jsonStr, err := json.Marshal(metrics)
@@ -214,7 +256,7 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 		return errors.New("new request error")
 	}
 
-	ip, err := agent.GetIP()
+	ip, err := network.GetIP()
 	if err != nil {
 		logger.Log.Warn("can't get ip", zap.String("error", err.Error()))
 	}
@@ -227,7 +269,7 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 		req.Header.Add("HashSHA256", requestHash)
 	}
 
-	res, err := agent.Client.Do(req)
+	res, err := agent.HttpClient.Do(req)
 	if err != nil {
 		return ErrDoRequest
 	}
@@ -236,17 +278,4 @@ func (agent *Agent) reportMetrics(ctx context.Context, metrics []model.Metrics) 
 	res.Body.Close()
 
 	return nil
-}
-
-func (agent *Agent) GetIP() (net.IP, error) {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return nil, fmt.Errorf("failed to identify IP addresses: %w", err)
-	}
-	for _, addr := range addrs {
-		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-			return ipNet.IP.To4(), nil
-		}
-	}
-	return nil, errors.New("ip address is not found")
 }
