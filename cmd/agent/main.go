@@ -10,11 +10,14 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/derpartizanen/metrics/internal/agent"
 	"github.com/derpartizanen/metrics/internal/config"
 	"github.com/derpartizanen/metrics/internal/logger"
 	"github.com/derpartizanen/metrics/internal/model"
+	"github.com/derpartizanen/metrics/proto"
 )
 
 var (
@@ -33,11 +36,18 @@ func main() {
 	cfg := config.ConfigureAgent()
 	cfg.LogVars()
 
-	client := &http.Client{
+	httpClient := &http.Client{
 		Timeout: time.Minute,
 	}
 
-	metricAgent := agent.New(client, cfg)
+	conn, err := grpc.NewClient(cfg.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Log.Fatal("grpc client failed", zap.Error(err))
+	}
+	defer conn.Close()
+	grpcClient := proto.NewMetricCollectorClient(conn)
+
+	metricAgent := agent.New(httpClient, grpcClient, cfg)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer cancel()

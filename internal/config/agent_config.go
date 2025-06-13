@@ -18,6 +18,7 @@ type AgentConfig struct {
 	HashKey          string `env:"KEY" json:"key"`
 	RateLimit        int    `env:"RATE_LIMIT" json:"rate_limit"`
 	CryptoKey        string `env:"CRYPTO_KEY" json:"crypto_key"`
+	AgentType        string `env:"AGENT_TYPE" json:"agent_type"`
 }
 
 func ConfigureAgent() *AgentConfig {
@@ -30,6 +31,7 @@ func ConfigureAgent() *AgentConfig {
 	flag.StringVar(&config.HashKey, "k", "", "hash key")
 	flag.IntVar(&config.RateLimit, "l", 1, "rate limit")
 	flag.StringVar(&config.CryptoKey, "crypto-key", "", "crypto key")
+	flag.StringVar(&config.AgentType, "agent-type", "http", "agent type: http or grpc")
 	var configPath string
 	flag.StringVar(&configPath, "config", "", "config file")
 	flag.Parse()
@@ -53,6 +55,7 @@ func ConfigureAgent() *AgentConfig {
 }
 
 func (cfg *AgentConfig) LogVars() {
+	log.Printf("* agentType=%s\n", cfg.AgentType)
 	log.Printf("* reportEndpoint=%s\n", cfg.Address)
 	log.Printf("* reportInterval=%d\n", cfg.ReportInterval)
 	log.Printf("* reportRetryCount=%d\n", cfg.ReportRetryCount)

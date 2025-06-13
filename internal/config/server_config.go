@@ -19,6 +19,8 @@ type ServerConfig struct {
 	DatabaseDSN   string `env:"DATABASE_DSN" json:"database_dsn"`
 	Key           string `env:"KEY" json:"key"`
 	CryptoKey     string `env:"CRYPTO_KEY" json:"crypto_key"`
+	TrustedSubnet string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
+	GrpcAddress   string `env:"GRPC_ADDRESS" json:"grpc_address"`
 }
 
 func ConfigureServer() *ServerConfig {
@@ -31,7 +33,9 @@ func ConfigureServer() *ServerConfig {
 	flag.StringVar(&config.DatabaseDSN, "d", "", "database DSN")
 	flag.StringVar(&config.Key, "k", "", "hash key")
 	flag.StringVar(&config.CryptoKey, "crypto-key", "", "crypto key")
+	flag.StringVar(&config.TrustedSubnet, "t", "", "trusted subnet (CIDR)")
 	flag.StringVar(&config.Loglevel, "l", "DEBUG", "log level")
+	flag.StringVar(&config.GrpcAddress, "grpc-address", "localhost:9090", "grpc address")
 	var configPath string
 	flag.StringVar(&configPath, "config", "", "config file")
 	flag.Parse()
@@ -70,7 +74,10 @@ func (cfg *ServerConfig) loadServerConfigFile(configPath string) error {
 
 func (cfg *ServerConfig) LogVars() {
 	log.Printf("* Address=%s\n", cfg.Host)
+	log.Printf("* Grpc Address=%s\n", cfg.GrpcAddress)
 	log.Printf("* StorePath=%s\n", cfg.StoragePath)
 	log.Printf("* StoreInterval=%d\n", cfg.StoreInterval)
 	log.Printf("* Restore=%t\n", cfg.Restore)
+	log.Printf("* CryptoKey=%s\n", cfg.CryptoKey)
+	log.Printf("* TrustedSubnet=%s\n", cfg.TrustedSubnet)
 }
